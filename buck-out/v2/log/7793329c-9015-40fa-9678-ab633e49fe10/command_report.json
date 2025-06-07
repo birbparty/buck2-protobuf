@@ -1,0 +1,10 @@
+{
+  "trace_id": "7793329c-9015-40fa-9678-ab633e49fe10",
+  "exit_code": 3,
+  "error_messages": [
+    "Unknown target `nonexistent_proto` from package `root//test/fixtures`.\nDid you mean one of the 3 targets in root//test/fixtures:BUCK?"
+  ],
+  "finalizing_error_messages": [
+    "'invocation recorder' failed to finalize\n\nCaused by:\n    Scribe sink not enabled (internal error)"
+  ]
+}

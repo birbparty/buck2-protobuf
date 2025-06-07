@@ -1,0 +1,10 @@
+{
+  "trace_id": "6b8308b6-c850-4f53-ae20-6da77c7d196b",
+  "exit_code": 3,
+  "error_messages": [
+    "Error running analysis for `root//platforms:default (<unbound>)`\n\nCaused by:\n    0: Error looking up configured node root//platforms:default (<unbound>)\n    1: looking up unconfigured target node `root//platforms:default`\n    2: Error loading targets in package `root//platforms` for target `root//platforms:default`\n    3: Error evaluating build file: `root//platforms:BUCK`\n    4: error: Variable `platform` not found\n        --> platforms/BUCK:3:1\n         |\n       3 | platform(\n         | ^^^^^^^^\n         |\n       "
+  ],
+  "finalizing_error_messages": [
+    "'invocation recorder' failed to finalize\n\nCaused by:\n    Scribe sink not enabled (internal error)"
+  ]
+}

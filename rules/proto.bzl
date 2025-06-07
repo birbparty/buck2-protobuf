@@ -5,33 +5,26 @@ for all language-specific code generation. These rules handle proto compilation,
 dependency resolution, and provide the base infrastructure for the protobuf-buck2
 integration.
 
-The rules defined here follow the API specification and will be fully implemented
-in subsequent tasks.
+The rules defined here follow the API specification and are implemented in Task 002.
 """
 
-# Basic protobuf rules without external dependencies
+load("//rules/private:utils.bzl", "merge_proto_infos", "get_proto_import_path", "validate_proto_library_inputs", "create_descriptor_set_action", "get_proto_package_option")
+load("//rules/private:providers.bzl", "ProtoInfo")
 
-# Provider definitions will be implemented in Task 002
-ProtoInfo = provider(fields = [
-    "descriptor_set",
-    "proto_files", 
-    "import_paths",
-    "transitive_descriptor_sets",
-    "transitive_proto_files",
-    "transitive_import_paths",
-])
+# Re-export ProtoInfo for external use
+ProtoInfo = ProtoInfo
 
 def proto_library(
-    name: str,
-    srcs: list[str],
-    deps: list[str] = [],
-    visibility: list[str] = ["//visibility:private"],
-    import_prefix: str = "",
-    strip_import_prefix: str = "",
-    options: dict[str, str] = {},
-    validation: dict[str, any] = {},
-    well_known_types: bool = True,
-    protoc_version: str = "",
+    name,
+    srcs,
+    deps = [],
+    visibility = ["//visibility:private"],
+    import_prefix = "",
+    strip_import_prefix = "",
+    options = {},
+    validation = {},
+    well_known_types = True,
+    protoc_version = "",
     **kwargs
 ):
     """
@@ -66,33 +59,111 @@ def proto_library(
             visibility = ["PUBLIC"],
         )
     """
-    # Implementation will be added in Task 002
-    # For now, this is just a placeholder function
-    pass
+    # Call the actual Buck2 rule
+    proto_library_rule(
+        name = name,
+        srcs = srcs,
+        deps = deps,
+        visibility = visibility,
+        import_prefix = import_prefix,
+        strip_import_prefix = strip_import_prefix,
+        options = options,
+        validation = validation,
+        well_known_types = well_known_types,
+        protoc_version = protoc_version,
+        **kwargs
+    )
 
 def _proto_library_impl(ctx):
     """Implementation function for proto_library rule.
     
-    This will be fully implemented in Task 002 to handle:
+    Handles:
     - Proto compilation with protoc
     - Dependency resolution and transitive deps
     - Descriptor set generation
     - Validation integration
     - Caching optimization
     """
-    # Placeholder implementation
-    return [DefaultInfo()]
+    # Validate inputs
+    validate_proto_library_inputs(ctx)
+    
+    # Get proto source files
+    proto_files = ctx.attrs.srcs
+    
+    # Collect dependency ProtoInfo providers
+    dep_proto_infos = []
+    for dep in ctx.attrs.deps:
+        if ProtoInfo in dep:
+            dep_proto_infos.append(dep[ProtoInfo])
+    
+    # Merge transitive dependency information
+    transitive_info = merge_proto_infos(dep_proto_infos)
+    
+    # Compute import paths for this library
+    import_paths = []
+    for src in proto_files:
+        import_path = get_proto_import_path(
+            src,
+            ctx.attrs.import_prefix,
+            ctx.attrs.strip_import_prefix
+        )
+        # Get the directory of the import path
+        import_dir = "/".join(import_path.split("/")[:-1]) if "/" in import_path else "."
+        if import_dir not in import_paths:
+            import_paths.append(import_dir)
+    
+    # Add current directory as import path if not already present
+    if "." not in import_paths:
+        import_paths.append(".")
+    
+    # Create descriptor set via protoc compilation
+    descriptor_set = create_descriptor_set_action(
+        ctx,
+        proto_files,
+        transitive_info["transitive_descriptor_sets"],
+        import_paths + transitive_info["transitive_import_paths"]
+    )
+    
+    # Extract package options from proto files (for language-specific generation)
+    go_package = ctx.attrs.options.get("go_package", "")
+    python_package = ctx.attrs.options.get("python_package", "")
+    java_package = ctx.attrs.options.get("java_package", "")
+    
+    # Note: In a production implementation, we would extract package options from proto files
+    # For now, we rely on explicit options parameter since reading files at analysis time
+    # has limitations in Buck2. This will be enhanced in later tasks.
+    
+    # Create ProtoInfo provider
+    proto_info = ProtoInfo(
+        descriptor_set = descriptor_set,
+        proto_files = proto_files,
+        import_paths = import_paths,
+        transitive_descriptor_sets = transitive_info["transitive_descriptor_sets"] + [descriptor_set],
+        transitive_proto_files = transitive_info["transitive_proto_files"] + proto_files,
+        transitive_import_paths = transitive_info["transitive_import_paths"] + import_paths,
+        go_package = go_package,
+        python_package = python_package,
+        java_package = java_package,
+        lint_report = None,  # Will be implemented in validation tasks
+        breaking_report = None,  # Will be implemented in validation tasks
+    )
+    
+    # Return providers
+    return [
+        DefaultInfo(default_outputs = [descriptor_set]),
+        proto_info,
+    ]
 
-# Placeholder rule definition - will be properly implemented in Task 002
+# Proto library rule definition
 proto_library_rule = rule(
     impl = _proto_library_impl,
     attrs = {
         "srcs": attrs.list(attrs.source(), doc = "Proto source files"),
-        "deps": attrs.list(attrs.dep(), doc = "Proto dependencies"),
+        "deps": attrs.list(attrs.dep(providers = [ProtoInfo]), doc = "Proto dependencies"),
         "import_prefix": attrs.string(default = "", doc = "Import prefix"),
         "strip_import_prefix": attrs.string(default = "", doc = "Strip import prefix"),
         "options": attrs.dict(attrs.string(), attrs.string(), default = {}, doc = "Protobuf options"),
-        "validation": attrs.dict(attrs.string(), attrs.any(), default = {}, doc = "Validation config"),
+        "validation": attrs.dict(attrs.string(), attrs.string(), default = {}, doc = "Validation config"),
         "well_known_types": attrs.bool(default = True, doc = "Include well-known types"),
         "protoc_version": attrs.string(default = "", doc = "Protoc version"),
     },
@@ -100,10 +171,10 @@ proto_library_rule = rule(
 
 # Multi-language bundle placeholder - will be implemented in Task 010
 def proto_bundle(
-    name: str,
-    proto: str,
-    languages: dict[str, dict[str, any]],
-    visibility: list[str] = ["//visibility:private"],
+    name,
+    proto,
+    languages,
+    visibility = ["//visibility:private"],
     **kwargs
 ):
     """
@@ -131,12 +202,12 @@ def proto_bundle(
 
 # gRPC service placeholder - will be implemented in Task 010  
 def grpc_service(
-    name: str,
-    proto: str,
-    languages: list[str],
-    plugins: dict[str, dict[str, any]] = {},
-    visibility: list[str] = ["//visibility:private"],
-    service_config: dict[str, any] = {},
+    name,
+    proto,
+    languages,
+    plugins = {},
+    visibility = ["//visibility:private"],
+    service_config = {},
     **kwargs
 ):
     """

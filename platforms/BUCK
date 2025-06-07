@@ -1,2 +1,2 @@
-# Platform configurations BUCK file
-# Will be expanded when platform support is needed
+# Platform configurations will be implemented in later tasks
+# For now, using default Buck2 platform configuration

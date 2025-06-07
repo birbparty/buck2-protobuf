@@ -1,0 +1,10 @@
+{
+  "trace_id": "31baeb89-86f7-4f20-af34-6fdb0a77a72b",
+  "exit_code": 3,
+  "error_messages": [
+    "Error running analysis for `root//platforms:default (<unbound>)`\n\nCaused by:\n    0: Error looking up configured node root//platforms:default (<unbound>)\n    1: looking up unconfigured target node `root//platforms:default`\n    2: Unknown target `default` from package `root//platforms`.\n       Did you mean one of the 0 targets in root//platforms:BUCK?"
+  ],
+  "finalizing_error_messages": [
+    "'invocation recorder' failed to finalize\n\nCaused by:\n    Scribe sink not enabled (internal error)"
+  ]
+}

@@ -1,4 +1,14 @@
 # Basic protobuf example for Buck2 integration
-# Minimal BUCK file for project structure validation
 
-# Will be expanded in Task 002 with proto_library usage
+load("//rules:proto.bzl", "proto_library")
+
+proto_library(
+    name = "example_proto",
+    srcs = ["example.proto"],
+    options = {
+        "go_package": "github.com/org/protobuf-buck2/examples/basic",
+        "java_package": "com.org.protobuf_buck2.examples.basic",
+        "python_package": "org.protobuf_buck2.examples.basic",
+    },
+    visibility = ["PUBLIC"],
+)

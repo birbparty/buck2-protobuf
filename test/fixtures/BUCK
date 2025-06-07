@@ -1,2 +1,32 @@
-# Test fixtures BUCK file
-# Will be expanded in Task 004
+# Test fixtures for protobuf Buck2 integration
+
+load("//rules:proto.bzl", "proto_library")
+
+proto_library(
+    name = "simple_proto",
+    srcs = ["simple.proto"],
+    options = {
+        "go_package": "github.com/org/protobuf-buck2/test/simple",
+    },
+    visibility = ["PUBLIC"],
+)
+
+proto_library(
+    name = "complex_proto",
+    srcs = ["complex.proto"],
+    deps = [":simple_proto"],
+    options = {
+        "go_package": "github.com/org/protobuf-buck2/test/complex",
+    },
+    visibility = ["PUBLIC"],
+)
+
+proto_library(
+    name = "service_proto",
+    srcs = ["service.proto"],
+    deps = [":simple_proto"],
+    options = {
+        "go_package": "github.com/org/protobuf-buck2/test/service",
+    },
+    visibility = ["PUBLIC"],
+)

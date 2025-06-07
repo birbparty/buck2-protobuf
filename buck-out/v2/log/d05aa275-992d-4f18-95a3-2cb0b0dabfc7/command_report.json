@@ -1,0 +1,10 @@
+{
+  "trace_id": "d05aa275-992d-4f18-95a3-2cb0b0dabfc7",
+  "exit_code": 3,
+  "error_messages": [
+    "Failed to parse 1 package"
+  ],
+  "finalizing_error_messages": [
+    "'invocation recorder' failed to finalize\n\nCaused by:\n    Scribe sink not enabled (internal error)"
+  ]
+}

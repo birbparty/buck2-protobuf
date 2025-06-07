@@ -1,0 +1,10 @@
+{
+  "trace_id": "59f4ae1f-4b12-41c2-9142-2822a6a21eb7",
+  "exit_code": 3,
+  "error_messages": [
+    "Parsing target pattern `//test/fixtures:...`\n\nCaused by:\n    Target name must not be equal to `...`"
+  ],
+  "finalizing_error_messages": [
+    "'invocation recorder' failed to finalize\n\nCaused by:\n    Scribe sink not enabled (internal error)"
+  ]
+}
