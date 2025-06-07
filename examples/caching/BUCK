@@ -1,0 +1,122 @@
+load("//rules:proto.bzl", "proto_library", "proto_bundle", "grpc_service")
+
+# Example proto library with caching optimization
+proto_library(
+    name = "user_proto",
+    srcs = ["user.proto"],
+    options = {
+        "go_package": "github.com/example/user/v1",
+        "java_package": "com.example.user.v1", 
+        "python_package": "example.user.v1",
+    },
+    visibility = ["PUBLIC"],
+)
+
+proto_library(
+    name = "product_proto", 
+    srcs = ["product.proto"],
+    deps = [":user_proto"],
+    options = {
+        "go_package": "github.com/example/product/v1",
+        "java_package": "com.example.product.v1",
+        "python_package": "example.product.v1", 
+    },
+    visibility = ["PUBLIC"],
+)
+
+# Multi-language bundle with optimized caching
+# This demonstrates language isolation - changes to Go config
+# won't invalidate Python or TypeScript cache entries
+proto_bundle(
+    name = "user_bundle",
+    proto = ":user_proto",
+    languages = {
+        "go": {
+            "go_package": "github.com/example/user/v1",
+            "go_opt": "paths=source_relative",
+        },
+        "python": {
+            "python_package": "example.user.v1",
+            "pyi_out": True,
+        },
+        "typescript": {
+            "npm_package": "@example/user-v1",
+            "import_style": "commonjs",
+        },
+        "cpp": {
+            "cc_out": ".",
+            "optimize_for": "SPEED",
+        },
+        "rust": {
+            "customize": {
+                "serde_derive": True,
+            },
+        },
+    },
+    # Enable cross-language consistency checks
+    consistency_checks = True,
+    # Allow parallel generation for performance
+    parallel_generation = True,
+    visibility = ["PUBLIC"],
+)
+
+# gRPC service with advanced caching for plugins
+grpc_service(
+    name = "user_service",
+    proto = ":user_proto",
+    languages = ["go", "python", "typescript"],
+    plugins = {
+        # gRPC-Gateway plugin (Go only)
+        "grpc-gateway": {
+            "enabled": True,
+            "logtostderr": True,
+        },
+        # OpenAPI documentation generation
+        "openapi": {
+            "output_format": "json",
+            "allow_merge": True,
+        },
+        # Request/response validation
+        "validate": {
+            "emit_imported_vars": True,
+            "lang": "go",
+        },
+        # Mock generation for testing
+        "mock": {
+            "package": "usermocks",
+            "destination": "mocks/user_service.go",
+        },
+    },
+    service_config = {
+        "timeout": "30s",
+        "retry_policy": "exponential",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# High-performance bundle optimized for incremental builds
+proto_bundle(
+    name = "product_bundle_optimized", 
+    proto = ":product_proto",
+    languages = {
+        "go": {
+            "go_package": "github.com/example/product/v1",
+            # Optimizations for cache performance
+            "go_opt": [
+                "paths=source_relative",
+                "Mgoogle/protobuf/timestamp.proto=github.com/golang/protobuf/ptypes/timestamp",
+            ],
+        },
+        "python": {
+            "python_package": "example.product.v1",
+            # Enable faster imports
+            "pyi_out": True,
+            "python_opt": "optimize_mode=speed",
+        },
+    },
+    # Disable expensive consistency checks for faster builds
+    consistency_checks = False,
+    # Enable parallel generation
+    parallel_generation = True,
+    visibility = ["PUBLIC"],
+)

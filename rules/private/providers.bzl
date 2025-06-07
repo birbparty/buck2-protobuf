@@ -92,3 +92,65 @@ ValidationRuleInfo = provider(fields = [
     "rule_name",            # Human-readable name of the rule
     "description",          # Description of what the rule validates
 ])
+
+# CacheKeyInfo provider - cache key information for optimized builds
+CacheKeyInfo = provider(fields = [
+    "base_cache_key",       # Base cache key for proto compilation
+    "language_cache_keys",  # Dictionary of language -> cache key
+    "tool_versions_hash",   # Hash of tool versions used
+    "proto_content_hash",   # Hash of proto file contents
+    "dependency_hash",      # Hash of transitive dependencies
+    "rule_version_hash",    # Hash of rule implementation version
+    "generation_time",      # Timestamp when cache key was generated
+])
+
+# CacheMetricsInfo provider - cache performance metrics
+CacheMetricsInfo = provider(fields = [
+    "cache_hit_rate",       # Percentage of cache hits vs total lookups
+    "cache_miss_rate",      # Percentage of cache misses vs total lookups
+    "total_lookups",        # Total number of cache lookups performed
+    "average_hit_time_ms",  # Average time for successful cache retrieval
+    "average_miss_time_ms", # Average time for cache miss + generation
+    "cache_size_mb",        # Current cache size in megabytes
+    "eviction_count",       # Number of cache entries evicted
+    "last_updated",         # Timestamp of last metrics update
+])
+
+# CacheConfigInfo provider - caching configuration and settings
+CacheConfigInfo = provider(fields = [
+    "hash_inputs",          # Whether to hash input files for cache keys
+    "hash_tools",           # Whether to hash tool versions for cache keys
+    "language_isolation",   # Whether to use separate cache keys per language
+    "version_isolation",    # Whether to isolate cache by rule version
+    "local_cache_enabled",  # Whether local caching is enabled
+    "remote_cache_enabled", # Whether remote caching is enabled
+    "cache_size_limit_mb",  # Maximum cache size in megabytes
+    "ttl_hours",           # Time-to-live for cache entries in hours
+    "invalidate_on_rule_change", # Whether to invalidate on rule changes
+    "compression_enabled",  # Whether to compress cached artifacts
+    "cache_storage_path",   # Path for local cache storage
+])
+
+# CacheStorageInfo provider - information about cached artifacts
+CacheStorageInfo = provider(fields = [
+    "cache_key",           # Cache key for these artifacts
+    "language",            # Target language for these artifacts
+    "artifacts",           # List of cached artifact files
+    "metadata",            # Cache metadata (timestamps, sizes, etc.)
+    "storage_path",        # Path where artifacts are stored
+    "compression_used",    # Whether artifacts are compressed
+    "creation_time",       # When cache entry was created
+    "last_accessed",       # When cache entry was last accessed
+    "access_count",        # Number of times cache entry was accessed
+])
+
+# CacheValidationInfo provider - cache validation and integrity information
+CacheValidationInfo = provider(fields = [
+    "is_valid",            # Whether cached artifacts are valid
+    "validation_errors",   # List of validation errors found
+    "checksum_verified",   # Whether artifact checksums are valid
+    "dependency_check",    # Whether dependencies are consistent
+    "tool_version_check",  # Whether tool versions match
+    "expiry_check",        # Whether cache entry has not expired
+    "corruption_detected", # Whether any corruption was detected
+])

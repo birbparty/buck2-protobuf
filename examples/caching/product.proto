@@ -1,0 +1,139 @@
+syntax = "proto3";
+
+package example.product.v1;
+
+import "user.proto";
+
+option go_package = "github.com/example/product/v1";
+option java_package = "com.example.product.v1";
+option python_package = "example.product.v1";
+
+// Product represents a product in the system
+message Product {
+  // Unique identifier for the product
+  string id = 1;
+  
+  // Product name
+  string name = 2;
+  
+  // Product description
+  string description = 3;
+  
+  // Product price in cents
+  int64 price_cents = 4;
+  
+  // Product currency
+  string currency = 5;
+  
+  // Product owner
+  example.user.v1.User owner = 6;
+  
+  // Product category
+  ProductCategory category = 7;
+  
+  // Product tags
+  repeated string tags = 8;
+  
+  // Product metadata
+  ProductMetadata metadata = 9;
+}
+
+// Product category enumeration
+enum ProductCategory {
+  PRODUCT_CATEGORY_UNSPECIFIED = 0;
+  PRODUCT_CATEGORY_ELECTRONICS = 1;
+  PRODUCT_CATEGORY_CLOTHING = 2;
+  PRODUCT_CATEGORY_BOOKS = 3;
+  PRODUCT_CATEGORY_HOME = 4;
+  PRODUCT_CATEGORY_SPORTS = 5;
+}
+
+// Product metadata
+message ProductMetadata {
+  // Product weight in grams
+  int32 weight_grams = 1;
+  
+  // Product dimensions
+  Dimensions dimensions = 2;
+  
+  // Product availability
+  bool available = 3;
+  
+  // Stock quantity
+  int32 stock_quantity = 4;
+}
+
+// Product dimensions
+message Dimensions {
+  // Length in millimeters
+  int32 length_mm = 1;
+  
+  // Width in millimeters
+  int32 width_mm = 2;
+  
+  // Height in millimeters
+  int32 height_mm = 3;
+}
+
+// Request to create a product
+message CreateProductRequest {
+  // Product to create
+  Product product = 1;
+}
+
+// Response after creating a product
+message CreateProductResponse {
+  // Created product with assigned ID
+  Product product = 1;
+}
+
+// Request to list products
+message ListProductsRequest {
+  // Page size for pagination
+  int32 page_size = 1;
+  
+  // Page token for pagination
+  string page_token = 2;
+  
+  // Filter by category
+  ProductCategory category = 3;
+  
+  // Filter by owner ID
+  string owner_id = 4;
+}
+
+// Response containing list of products
+message ListProductsResponse {
+  // List of products
+  repeated Product products = 1;
+  
+  // Next page token
+  string next_page_token = 2;
+  
+  // Total count of products
+  int32 total_count = 3;
+}
+
+// Request to get a product by ID
+message GetProductRequest {
+  // Product ID
+  string id = 1;
+}
+
+// Response containing product data
+message GetProductResponse {
+  // Retrieved product
+  Product product = 1;
+}
+
+// Product service for managing products
+service ProductService {
+  // Create a new product
+  rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse);
+  
+  // List products with filtering and pagination
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
+  
+  // Get a product by ID
+  rpc GetProduct(GetProductRequest) returns (GetProductResponse);
+}

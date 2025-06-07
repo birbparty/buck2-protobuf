@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package example.user.v1;
+
+option go_package = "github.com/example/user/v1";
+option java_package = "com.example.user.v1";
+option python_package = "example.user.v1";
+
+// User represents a user in the system
+message User {
+  // Unique identifier for the user
+  string id = 1;
+  
+  // Full name of the user
+  string name = 2;
+  
+  // Email address of the user
+  string email = 3;
+  
+  // Age of the user
+  int32 age = 4;
+  
+  // Tags associated with the user
+  repeated string tags = 5;
+  
+  // User preferences
+  UserPreferences preferences = 6;
+}
+
+// User preferences and settings
+message UserPreferences {
+  // Preferred language
+  string language = 1;
+  
+  // Timezone preference
+  string timezone = 2;
+  
+  // Email notification settings
+  bool email_notifications = 3;
+  
+  // Theme preference
+  Theme theme = 4;
+}
+
+// UI theme options
+enum Theme {
+  THEME_UNSPECIFIED = 0;
+  THEME_LIGHT = 1;
+  THEME_DARK = 2;
+  THEME_AUTO = 3;
+}
+
+// Request to create a new user
+message CreateUserRequest {
+  // User to create
+  User user = 1;
+}
+
+// Response after creating a user
+message CreateUserResponse {
+  // Created user with assigned ID
+  User user = 1;
+}
+
+// Request to get a user by ID
+message GetUserRequest {
+  // User ID
+  string id = 1;
+}
+
+// Response containing user data
+message GetUserResponse {
+  // Retrieved user
+  User user = 1;
+}
+
+// User service for managing users
+service UserService {
+  // Create a new user
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  
+  // Get a user by ID
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+}

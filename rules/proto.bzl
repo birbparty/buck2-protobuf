@@ -9,9 +9,11 @@ The rules defined here follow the API specification and are implemented in Task 
 """
 
 load("//rules/private:utils.bzl", "merge_proto_infos", "get_proto_import_path", "validate_proto_library_inputs", "create_descriptor_set_action", "get_proto_package_option")
-load("//rules/private:providers.bzl", "ProtoInfo", "ProtoBundleInfo", "GrpcServiceInfo")
+load("//rules/private:providers.bzl", "ProtoInfo", "ProtoBundleInfo", "GrpcServiceInfo", "CacheKeyInfo", "CacheConfigInfo")
 load("//rules/private:bundle_impl.bzl", "validate_bundle_config", "create_language_target", "generate_language_target_name", "validate_cross_language_consistency", "create_bundle_info")
 load("//rules/private:grpc_impl.bzl", "validate_grpc_service_config", "generate_grpc_gateway_code", "generate_validation_code", "generate_mock_code", "create_grpc_service_info")
+load("//rules/private:cache_impl.bzl", "get_default_cache_config", "create_cache_key_info", "try_cache_lookup", "store_in_cache")
+load("//rules/private:cache_keys.bzl", "generate_cache_key_for_bundle", "generate_cache_key_for_grpc_service")
 
 # Re-export ProtoInfo for external use
 ProtoInfo = ProtoInfo
