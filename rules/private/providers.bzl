@@ -71,3 +71,24 @@ ConsistencyReport = provider(fields = [
     "validation_warnings",  # List of validation warnings
     "is_valid",             # Boolean indicating if validation passed
 ])
+
+# ValidationInfo provider - protobuf validation and linting results
+ValidationInfo = provider(fields = [
+    "passed",               # Boolean indicating if all validation passed
+    "lint_result",          # Result file from linting (buf lint output)
+    "breaking_result",      # Result file from breaking change detection
+    "custom_results",       # List of custom validation rule results
+    "report",               # Comprehensive validation report file
+    "error_count",          # Number of validation errors found
+    "warning_count",        # Number of validation warnings found
+    "linter_used",          # Name of linter used (e.g., "buf")
+])
+
+# ValidationRuleInfo provider - custom validation rule information
+ValidationRuleInfo = provider(fields = [
+    "script",               # Executable script that implements the rule
+    "error_message",        # Error message to display on rule failure
+    "severity",             # Severity level (error, warning, info)
+    "rule_name",            # Human-readable name of the rule
+    "description",          # Description of what the rule validates
+])

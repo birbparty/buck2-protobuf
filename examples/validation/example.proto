@@ -1,0 +1,117 @@
+syntax = "proto3";
+
+package com.example.userservice;
+
+option go_package = "github.com/example/userservice";
+
+// UserService provides user management functionality
+service UserService {
+  // GetUser retrieves a user by ID
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  
+  // CreateUser creates a new user
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  
+  // UpdateUser updates an existing user
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  
+  // DeleteUser removes a user
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  
+  // ListUsers returns a list of users
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+}
+
+// Request message for GetUser RPC
+message GetUserRequest {
+  // User ID to retrieve
+  string user_id = 1;
+}
+
+// Response message for GetUser RPC
+message GetUserResponse {
+  // Retrieved user
+  User user = 1;
+}
+
+// Request message for CreateUser RPC
+message CreateUserRequest {
+  // User to create
+  User user = 1;
+}
+
+// Response message for CreateUser RPC
+message CreateUserResponse {
+  // Created user with assigned ID
+  User user = 1;
+}
+
+// Request message for UpdateUser RPC
+message UpdateUserRequest {
+  // User ID to update
+  string user_id = 1;
+  // Updated user data
+  User user = 2;
+}
+
+// Response message for UpdateUser RPC
+message UpdateUserResponse {
+  // Updated user
+  User user = 1;
+}
+
+// Request message for DeleteUser RPC
+message DeleteUserRequest {
+  // User ID to delete
+  string user_id = 1;
+}
+
+// Response message for DeleteUser RPC
+message DeleteUserResponse {
+  // Success indicator
+  bool success = 1;
+}
+
+// Request message for ListUsers RPC
+message ListUsersRequest {
+  // Maximum number of users to return
+  int32 page_size = 1;
+  // Page token for pagination
+  string page_token = 2;
+}
+
+// Response message for ListUsers RPC
+message ListUsersResponse {
+  // List of users
+  repeated User users = 1;
+  // Next page token
+  string next_page_token = 2;
+}
+
+// User entity
+message User {
+  // Unique user identifier
+  string user_id = 1;
+  // User's email address
+  string email = 2;
+  // User's display name
+  string display_name = 3;
+  // User creation timestamp
+  google.protobuf.Timestamp created_at = 4;
+  // User last update timestamp
+  google.protobuf.Timestamp updated_at = 5;
+  // User status
+  UserStatus status = 6;
+}
+
+// User status enumeration
+enum UserStatus {
+  // Default value
+  USER_STATUS_UNSPECIFIED = 0;
+  // User is active
+  USER_STATUS_ACTIVE = 1;
+  // User is inactive
+  USER_STATUS_INACTIVE = 2;
+  // User is suspended
+  USER_STATUS_SUSPENDED = 3;
+}

@@ -1,0 +1,73 @@
+"""Validation examples demonstrating protobuf linting and breaking change detection."""
+
+load("//rules:proto.bzl", "proto_library")
+load("//rules:validation.bzl", "proto_validate", "proto_breaking_check", "custom_validation_rule")
+
+# Example proto library with good style
+proto_library(
+    name = "user_service_proto",
+    srcs = ["example.proto"],
+    deps = [
+        "@protobuf//:timestamp_proto",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Basic validation example
+proto_validate(
+    name = "validate_user_service",
+    srcs = [":user_service_proto"],
+    linter = "buf",
+    visibility = ["PUBLIC"],
+)
+
+# Custom validation rules
+custom_validation_rule(
+    name = "check_package_naming",
+    script = "//test/fixtures:check_package_naming.py",
+    error_message = "Package names must follow organization standards",
+    severity = "error",
+    rule_name = "Package Naming Convention",
+    description = "Ensures package names follow com.domain.service pattern",
+    visibility = ["PUBLIC"],
+)
+
+custom_validation_rule(
+    name = "check_service_naming",
+    script = "//test/fixtures:check_service_naming.py",
+    error_message = "Service names must end with 'Service'",
+    severity = "warning",
+    rule_name = "Service Naming Convention", 
+    description = "Ensures all gRPC services follow naming conventions",
+    visibility = ["PUBLIC"],
+)
+
+# Comprehensive validation with custom rules
+proto_validate(
+    name = "validate_with_custom_rules",
+    srcs = [":user_service_proto"],
+    linter = "buf",
+    custom_rules = [
+        ":check_package_naming",
+        ":check_service_naming",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Breaking change detection example
+proto_breaking_check(
+    name = "check_breaking_changes",
+    current = ":user_service_proto",
+    baseline = ":user_service_proto",  # Same proto for demo
+    output_format = "json",
+    visibility = ["PUBLIC"],
+)
+
+# Example of validation with custom buf configuration
+proto_validate(
+    name = "validate_strict_mode",
+    srcs = [":user_service_proto"],
+    linter = "buf",
+    config_file = "buf.yaml",
+    visibility = ["PUBLIC"],
+)
