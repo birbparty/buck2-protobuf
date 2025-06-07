@@ -378,7 +378,8 @@ def get_tool_requirements(language: str):
             "ts-proto": "",
         },
         "rust": {
-            # Will be added in future tasks
+            "protoc-gen-prost": "",
+            "protoc-gen-tonic": "",
         },
     }
     

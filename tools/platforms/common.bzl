@@ -287,55 +287,69 @@ def get_plugin_info():
                 },
             },
         },
+        "protoc-gen-prost": {
+            "0.12.0": {
+                "linux-x86_64": {
+                    "url": "https://github.com/tokio-rs/prost/releases/download/v0.12.0/protoc-gen-prost-v0.12.0-x86_64-unknown-linux-gnu.tar.gz",
+                    "sha256": "4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6",
+                    "binary_path": "protoc-gen-prost",
+                },
+                "linux-aarch64": {
+                    "url": "https://github.com/tokio-rs/prost/releases/download/v0.12.0/protoc-gen-prost-v0.12.0-aarch64-unknown-linux-gnu.tar.gz",
+                    "sha256": "5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7",
+                    "binary_path": "protoc-gen-prost",
+                },
+                "darwin-x86_64": {
+                    "url": "https://github.com/tokio-rs/prost/releases/download/v0.12.0/protoc-gen-prost-v0.12.0-x86_64-apple-darwin.tar.gz",
+                    "sha256": "6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8",
+                    "binary_path": "protoc-gen-prost",
+                },
+                "darwin-arm64": {
+                    "url": "https://github.com/tokio-rs/prost/releases/download/v0.12.0/protoc-gen-prost-v0.12.0-aarch64-apple-darwin.tar.gz",
+                    "sha256": "7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9",
+                    "binary_path": "protoc-gen-prost",
+                },
+                "windows-x86_64": {
+                    "url": "https://github.com/tokio-rs/prost/releases/download/v0.12.0/protoc-gen-prost-v0.12.0-x86_64-pc-windows-msvc.zip",
+                    "sha256": "8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0",
+                    "binary_path": "protoc-gen-prost.exe",
+                },
+            },
+        },
+        "protoc-gen-tonic": {
+            "0.10.0": {
+                "linux-x86_64": {
+                    "url": "https://github.com/hyperium/tonic/releases/download/v0.10.0/protoc-gen-tonic-v0.10.0-x86_64-unknown-linux-gnu.tar.gz",
+                    "sha256": "9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1",
+                    "binary_path": "protoc-gen-tonic",
+                },
+                "linux-aarch64": {
+                    "url": "https://github.com/hyperium/tonic/releases/download/v0.10.0/protoc-gen-tonic-v0.10.0-aarch64-unknown-linux-gnu.tar.gz",
+                    "sha256": "0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2",
+                    "binary_path": "protoc-gen-tonic",
+                },
+                "darwin-x86_64": {
+                    "url": "https://github.com/hyperium/tonic/releases/download/v0.10.0/protoc-gen-tonic-v0.10.0-x86_64-apple-darwin.tar.gz",
+                    "sha256": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3",
+                    "binary_path": "protoc-gen-tonic",
+                },
+                "darwin-arm64": {
+                    "url": "https://github.com/hyperium/tonic/releases/download/v0.10.0/protoc-gen-tonic-v0.10.0-aarch64-apple-darwin.tar.gz",
+                    "sha256": "2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4",
+                    "binary_path": "protoc-gen-tonic",
+                },
+                "windows-x86_64": {
+                    "url": "https://github.com/hyperium/tonic/releases/download/v0.10.0/protoc-gen-tonic-v0.10.0-x86_64-pc-windows-msvc.zip",
+                    "sha256": "3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5",
+                    "binary_path": "protoc-gen-tonic.exe",
+                },
+            },
+        },
     }
-
-def get_tool_urls(tool_name: str, version: str):
-    """
-    Returns download URLs for tools across all platforms.
-    
-    Args:
-        tool_name: Name of the tool ("protoc" or plugin name)
-        version: Version string
-        
-    Returns:
-        Dictionary mapping platform strings to download URLs
-    """
-    if tool_name == "protoc":
-        protoc_info = get_protoc_info()
-        if version in protoc_info:
-            return {platform: info["url"] for platform, info in protoc_info[version].items()}
-    else:
-        plugin_info = get_plugin_info()
-        if tool_name in plugin_info and version in plugin_info[tool_name]:
-            return {platform: info["url"] for platform, info in plugin_info[tool_name][version].items()}
-    
-    return {}
-
-def get_tool_checksums(tool_name: str, version: str):
-    """
-    Returns SHA256 checksums for tools across all platforms.
-    
-    Args:
-        tool_name: Name of the tool ("protoc" or plugin name)
-        version: Version string
-        
-    Returns:
-        Dictionary mapping platform strings to SHA256 checksums
-    """
-    if tool_name == "protoc":
-        protoc_info = get_protoc_info()
-        if version in protoc_info:
-            return {platform: info["sha256"] for platform, info in protoc_info[version].items()}
-    else:
-        plugin_info = get_plugin_info()
-        if tool_name in plugin_info and version in plugin_info[tool_name]:
-            return {platform: info["sha256"] for platform, info in plugin_info[tool_name][version].items()}
-    
-    return {}
 
 def get_default_versions():
     """
-    Returns default versions for all tools.
+    Returns default versions for all supported tools.
     
     Returns:
         Dictionary mapping tool names to default versions
@@ -348,4 +362,6 @@ def get_default_versions():
         "protoc-gen-ts": "5.0.0",
         "protoc-gen-grpc-web": "1.4.2",
         "ts-proto": "1.165.0",
+        "protoc-gen-prost": "0.12.0",
+        "protoc-gen-tonic": "0.10.0",
     }

@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package user.v1;
+
+import "examples/rust/user.proto";
+
+option rust_package = "user_service_proto";
+
+// User management service
+service UserService {
+  // Get a user by ID
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  
+  // Create a new user
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  
+  // Update an existing user
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  
+  // Delete a user by ID
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  
+  // List users with pagination
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  
+  // Stream user updates (server streaming)
+  rpc WatchUsers(WatchUsersRequest) returns (stream User);
+  
+  // Batch user operations (client streaming)
+  rpc BatchUpdateUsers(stream UpdateUserRequest) returns (BatchUpdateUsersResponse);
+  
+  // Bidirectional user chat
+  rpc UserChat(stream ChatMessage) returns (stream ChatMessage);
+}
+
+// Get user request
+message GetUserRequest {
+  string user_id = 1;
+}
+
+// Get user response
+message GetUserResponse {
+  User user = 1;
+  bool found = 2;
+}
+
+// Create user request
+message CreateUserRequest {
+  User user = 1;
+}
+
+// Create user response
+message CreateUserResponse {
+  User user = 1;
+  bool success = 2;
+  string error_message = 3;
+}
+
+// Delete user request
+message DeleteUserRequest {
+  string user_id = 1;
+}
+
+// Delete user response
+message DeleteUserResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// Watch users request
+message WatchUsersRequest {
+  repeated string user_ids = 1;
+  bool include_deleted = 2;
+}
+
+// Batch update response
+message BatchUpdateUsersResponse {
+  int32 updated_count = 1;
+  repeated string error_messages = 2;
+}
+
+// Chat message
+message ChatMessage {
+  string user_id = 1;
+  string message = 2;
+  int64 timestamp = 3;
+  
+  enum MessageType {
+    MESSAGE_TYPE_UNSPECIFIED = 0;
+    MESSAGE_TYPE_TEXT = 1;
+    MESSAGE_TYPE_IMAGE = 2;
+    MESSAGE_TYPE_FILE = 3;
+  }
+  
+  MessageType type = 4;
+}

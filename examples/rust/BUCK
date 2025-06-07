@@ -1,0 +1,71 @@
+load("//rules:proto.bzl", "proto_library")
+load("//rules:rust.bzl", "rust_proto_library", "rust_proto_messages", "rust_grpc_library")
+
+# Proto library definitions
+proto_library(
+    name = "user_proto",
+    srcs = ["user.proto"],
+    visibility = ["PUBLIC"],
+)
+
+proto_library(
+    name = "user_service_proto",
+    srcs = ["user_service.proto"],
+    deps = [":user_proto"],
+    visibility = ["PUBLIC"],
+)
+
+# Basic Rust protobuf generation (messages only)
+rust_proto_messages(
+    name = "user_rust_messages",
+    proto = ":user_proto",
+    rust_package = "user_proto",
+    serde = True,
+    derive = ["Clone", "Debug", "PartialEq"],
+    visibility = ["PUBLIC"],
+)
+
+# Full Rust protobuf library with gRPC services
+rust_grpc_library(
+    name = "user_service_rust_grpc",
+    proto = ":user_service_proto", 
+    rust_package = "user_service_proto",
+    serde = True,
+    derive = ["Clone", "Debug"],
+    visibility = ["PUBLIC"],
+)
+
+# Advanced Rust protobuf configuration example
+rust_proto_library(
+    name = "user_rust_advanced",
+    proto = ":user_proto",
+    rust_package = "user_advanced_proto",
+    plugins = ["prost"],
+    features = ["serde"],
+    options = {
+        "prost_type_attribute": ".user.v1.User=::serde::Serialize,::serde::Deserialize",
+        "prost_field_attribute": ".user.v1.User.email=::validator::Validate",
+    },
+    derive = ["Clone", "Debug", "PartialEq", "Eq", "Hash"],
+    edition = "2021",
+    visibility = ["PUBLIC"],
+)
+
+# Full service with both prost and tonic
+rust_proto_library(
+    name = "user_service_rust_full",
+    proto = ":user_service_proto",
+    rust_package = "user_service_full_proto", 
+    plugins = ["prost", "tonic"],
+    use_grpc = True,
+    serde = True,
+    features = ["serde", "derive"],
+    derive = ["Clone", "Debug"],
+    options = {
+        "tonic_build_server": "true",
+        "tonic_build_client": "true",
+        "prost_derive": "Clone,Debug",
+    },
+    edition = "2021",
+    visibility = ["PUBLIC"],
+)
