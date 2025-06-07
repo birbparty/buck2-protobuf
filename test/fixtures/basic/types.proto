@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package test.basic.types;
+
+option go_package = "github.com/org/protobuf-buck2/test/basic/types";
+
+// Test all basic scalar types
+message AllTypes {
+  // Numeric types
+  double double_field = 1;
+  float float_field = 2;
+  int32 int32_field = 3;
+  int64 int64_field = 4;
+  uint32 uint32_field = 5;
+  uint64 uint64_field = 6;
+  sint32 sint32_field = 7;
+  sint64 sint64_field = 8;
+  fixed32 fixed32_field = 9;
+  fixed64 fixed64_field = 10;
+  sfixed32 sfixed32_field = 11;
+  sfixed64 sfixed64_field = 12;
+  
+  // Boolean and string
+  bool bool_field = 13;
+  string string_field = 14;
+  bytes bytes_field = 15;
+  
+  // Repeated fields
+  repeated string repeated_strings = 16;
+  repeated int32 repeated_ints = 17;
+}
+
+// Test enums
+enum Priority {
+  PRIORITY_UNSPECIFIED = 0;
+  LOW = 1;
+  MEDIUM = 2;
+  HIGH = 3;
+  CRITICAL = 4;
+}
+
+// Test nested messages
+message OuterMessage {
+  message InnerMessage {
+    string inner_field = 1;
+  }
+  
+  InnerMessage inner = 1;
+  Priority priority = 2;
+}
+
+// Test oneof
+message OneOfTest {
+  oneof test_oneof {
+    string name = 1;
+    int32 id = 2;
+    bool flag = 3;
+  }
+}
+
+// Test map fields
+message MapTest {
+  map<string, string> string_map = 1;
+  map<int32, OuterMessage> message_map = 2;
+}

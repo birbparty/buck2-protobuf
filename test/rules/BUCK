@@ -1,2 +1,99 @@
-# Rule unit tests BUCK file
-# Will be expanded in Task 004
+# Unit tests for Buck2 protobuf rules
+
+load("//test/rules:proto_test.bzl", "proto_library_test", "proto_performance_test")
+load("//rules:proto.bzl", "proto_library")
+
+# Test basic proto_library functionality
+proto_library_test(
+    name = "basic_proto_test",
+    proto_files = ["//test/fixtures/basic:minimal.proto"],
+    expected_outputs = ["minimal_proto.descriptorset"],
+)
+
+proto_library_test(
+    name = "types_proto_test",
+    proto_files = ["//test/fixtures/basic:types.proto"],
+    expected_outputs = ["types_proto.descriptorset"],
+)
+
+# Test proto_library with dependencies
+proto_library_test(
+    name = "dependency_test",
+    proto_files = ["//test/fixtures/dependencies:derived.proto"],
+    deps = ["//test/fixtures/dependencies:base_proto"],
+    expected_outputs = ["derived_proto.descriptorset"],
+)
+
+# Test validation and error handling
+proto_library_test(
+    name = "validation_test",
+    proto_files = ["//test/fixtures/edge_cases:malformed.proto"],
+    expected_outputs = ["malformed_proto.descriptorset"],
+)
+
+# Performance tests
+proto_performance_test(
+    name = "large_proto_performance_test",
+    proto_files = ["//test/fixtures/performance:large.proto"],
+    max_compilation_time_ms = 5000,
+    max_memory_mb = 100,
+)
+
+# Test import prefix functionality
+proto_library(
+    name = "import_prefix_test_proto",
+    srcs = ["//test/fixtures/basic:minimal.proto"],
+    import_prefix = "test_prefix",
+    visibility = ["//test:__subpackages__"],
+)
+
+proto_library_test(
+    name = "import_prefix_test",
+    proto_files = [],  # Using existing target
+    deps = [":import_prefix_test_proto"],
+    expected_outputs = ["import_prefix_test_proto.descriptorset"],
+)
+
+# Test strip import prefix functionality
+proto_library(
+    name = "strip_prefix_test_proto",
+    srcs = ["//test/fixtures/basic:types.proto"],
+    strip_import_prefix = "test/fixtures/basic",
+    visibility = ["//test:__subpackages__"],
+)
+
+proto_library_test(
+    name = "strip_prefix_test",
+    proto_files = [],  # Using existing target
+    deps = [":strip_prefix_test_proto"],
+    expected_outputs = ["strip_prefix_test_proto.descriptorset"],
+)
+
+# Test options functionality
+proto_library(
+    name = "options_test_proto",
+    srcs = ["//test/fixtures/basic:types.proto"],
+    options = {
+        "go_package": "github.com/test/options",
+        "java_package": "com.test.options",
+        "python_package": "test.options",
+    },
+    visibility = ["//test:__subpackages__"],
+)
+
+proto_library_test(
+    name = "options_test",
+    proto_files = [],  # Using existing target
+    deps = [":options_test_proto"],
+    expected_outputs = ["options_test_proto.descriptorset"],
+)
+
+# Integration test with Python test utilities
+python_test(
+    name = "proto_utils_test",
+    srcs = ["proto_utils_test.py"],
+    deps = [
+        "//test:test_utils",
+    ],
+    visibility = ["//test:__subpackages__"],
+)

@@ -1,2 +1,47 @@
-# Test directory BUCK file
-# Will be expanded in Task 004
+# Test infrastructure for protobuf Buck2 integration
+
+load("//rules:proto.bzl", "proto_library")
+
+# Main test utility library
+python_library(
+    name = "test_utils",
+    srcs = ["test_utils.py"],
+    visibility = ["PUBLIC"],
+)
+
+# Test suites
+alias(
+    name = "unit_tests",
+    actual = "//test/rules:proto_utils_test",
+    visibility = ["PUBLIC"],
+)
+
+# Integration test script
+sh_binary(
+    name = "integration_tests",
+    main = "integration/test_workflows.sh",
+    visibility = ["PUBLIC"],
+)
+
+# Run all tests
+alias(
+    name = "all_tests",
+    actual = [
+        ":unit_tests",
+        "//test/rules:basic_proto_test",
+        "//test/rules:types_proto_test",
+        "//test/rules:dependency_test",
+        "//test/rules:validation_test",
+        "//test/rules:large_proto_performance_test",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Performance test suite
+alias(
+    name = "performance_tests",
+    actual = [
+        "//test/rules:large_proto_performance_test",
+    ],
+    visibility = ["PUBLIC"],
+)

@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package test.dependencies.derived;
+
+import "test/fixtures/dependencies/base.proto";
+
+option go_package = "github.com/org/protobuf-buck2/test/dependencies/derived";
+
+// Message that depends on base proto
+message DerivedMessage {
+  test.dependencies.base.BaseMessage base = 1;
+  string additional_field = 2;
+  test.dependencies.base.BaseStatus status = 3;
+}
+
+// Service that extends base service
+service DerivedService {
+  rpc GetDerived(DerivedRequest) returns (DerivedResponse);
+  rpc UpdateBase(test.dependencies.base.BaseRequest) returns (test.dependencies.base.BaseResponse);
+}
+
+message DerivedRequest {
+  int32 id = 1;
+  bool include_base = 2;
+}
+
+message DerivedResponse {
+  DerivedMessage derived = 1;
+  repeated test.dependencies.base.BaseMessage bases = 2;
+}

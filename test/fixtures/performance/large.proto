@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package test.performance.large;
+
+option go_package = "github.com/org/protobuf-buck2/test/performance/large";
+
+// Large message for performance testing
+message LargeMessage {
+  string field_001 = 1;
+  string field_002 = 2;
+  string field_003 = 3;
+  string field_004 = 4;
+  string field_005 = 5;
+  string field_006 = 6;
+  string field_007 = 7;
+  string field_008 = 8;
+  string field_009 = 9;
+  string field_010 = 10;
+  string field_011 = 11;
+  string field_012 = 12;
+  string field_013 = 13;
+  string field_014 = 14;
+  string field_015 = 15;
+  string field_016 = 16;
+  string field_017 = 17;
+  string field_018 = 18;
+  string field_019 = 19;
+  string field_020 = 20;
+  string field_021 = 21;
+  string field_022 = 22;
+  string field_023 = 23;
+  string field_024 = 24;
+  string field_025 = 25;
+  string field_026 = 26;
+  string field_027 = 27;
+  string field_028 = 28;
+  string field_029 = 29;
+  string field_030 = 30;
+  string field_031 = 31;
+  string field_032 = 32;
+  string field_033 = 33;
+  string field_034 = 34;
+  string field_035 = 35;
+  string field_036 = 36;
+  string field_037 = 37;
+  string field_038 = 38;
+  string field_039 = 39;
+  string field_040 = 40;
+  string field_041 = 41;
+  string field_042 = 42;
+  string field_043 = 43;
+  string field_044 = 44;
+  string field_045 = 45;
+  string field_046 = 46;
+  string field_047 = 47;
+  string field_048 = 48;
+  string field_049 = 49;
+  string field_050 = 50;
+  
+  // Nested large messages
+  repeated LargeNested nested_messages = 51;
+  map<string, LargeNested> nested_map = 52;
+}
+
+message LargeNested {
+  string nested_field_001 = 1;
+  string nested_field_002 = 2;
+  string nested_field_003 = 3;
+  string nested_field_004 = 4;
+  string nested_field_005 = 5;
+  string nested_field_006 = 6;
+  string nested_field_007 = 7;
+  string nested_field_008 = 8;
+  string nested_field_009 = 9;
+  string nested_field_010 = 10;
+  repeated int32 large_repeated_field = 11;
+}
+
+// Service with many RPCs for performance testing
+service LargeService {
+  rpc Method001(LargeMessage) returns (LargeMessage);
+  rpc Method002(LargeMessage) returns (LargeMessage);
+  rpc Method003(LargeMessage) returns (LargeMessage);
+  rpc Method004(LargeMessage) returns (LargeMessage);
+  rpc Method005(LargeMessage) returns (LargeMessage);
+  rpc Method006(LargeMessage) returns (LargeMessage);
+  rpc Method007(LargeMessage) returns (LargeMessage);
+  rpc Method008(LargeMessage) returns (LargeMessage);
+  rpc Method009(LargeMessage) returns (LargeMessage);
+  rpc Method010(LargeMessage) returns (LargeMessage);
+}

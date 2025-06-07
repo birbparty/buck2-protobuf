@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package test.edge_cases.malformed;
+
+// This proto intentionally contains syntax that should be caught by validation
+// but is syntactically valid to protoc for testing error handling
+
+// Test reserved words as field names (should be allowed but warned about)
+message ReservedWordTest {
+  string class = 1;  // Reserved in many languages
+  string package = 2;  // Reserved in many languages
+  string import = 3;  // Reserved in many languages
+}
+
+// Test extremely long field names
+message LongNameTest {
+  string this_is_an_extremely_long_field_name_that_might_cause_issues_in_some_code_generators_because_it_exceeds_reasonable_length_limits = 1;
+}
+
+// Test non-sequential field numbers
+message NonSequentialFields {
+  string field_1 = 1;
+  string field_1000 = 1000;
+  string field_19000 = 19000;  // Near max field number
+}
+
+// Test unicode in field names and comments
+message UnicodeTest {
+  string field_with_émojis = 1;  // Contains unicode
+  string 字段名称 = 2;  // Chinese characters
+  // Comment with emoji: 🚀 and unicode: café
+}
+
+// Test deeply nested messages
+message Level1 {
+  message Level2 {
+    message Level3 {
+      message Level4 {
+        message Level5 {
+          string deep_field = 1;
+        }
+      }
+    }
+  }
+}
+
+// Test message with maximum field number
+message MaxFieldTest {
+  string regular_field = 1;
+  string max_field = 536870911;  // Max allowed field number
+}

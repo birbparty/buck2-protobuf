@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package test.dependencies.base;
+
+option go_package = "github.com/org/protobuf-buck2/test/dependencies/base";
+
+// Base message that other protos will depend on
+message BaseMessage {
+  int32 id = 1;
+  string name = 2;
+}
+
+// Base enum
+enum BaseStatus {
+  BASE_STATUS_UNKNOWN = 0;
+  BASE_STATUS_ACTIVE = 1;
+  BASE_STATUS_INACTIVE = 2;
+}
+
+// Base service (for dependency testing)
+service BaseService {
+  rpc GetBase(BaseRequest) returns (BaseResponse);
+}
+
+message BaseRequest {
+  int32 id = 1;
+}
+
+message BaseResponse {
+  BaseMessage message = 1;
+  BaseStatus status = 2;
+}
