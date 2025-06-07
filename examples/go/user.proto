@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "github.com/org/user/v1";
+
+// User represents a user in the system
+message User {
+  // Unique identifier for the user
+  int64 id = 1;
+  
+  // User's display name
+  string name = 2;
+  
+  // User's email address
+  string email = 3;
+  
+  // User's profile information
+  UserProfile profile = 4;
+  
+  // User creation timestamp
+  int64 created_at = 5;
+  
+  // User last update timestamp
+  int64 updated_at = 6;
+  
+  // User status
+  UserStatus status = 7;
+}
+
+// UserProfile contains additional user information
+message UserProfile {
+  // Profile display name
+  string display_name = 1;
+  
+  // User's bio/description
+  string bio = 2;
+  
+  // Profile picture URL
+  string avatar_url = 3;
+  
+  // User preferences
+  UserPreferences preferences = 4;
+}
+
+// UserPreferences contains user configuration
+message UserPreferences {
+  // Email notification settings
+  bool email_notifications = 1;
+  
+  // Push notification settings
+  bool push_notifications = 2;
+  
+  // Preferred language
+  string language = 3;
+  
+  // Preferred timezone
+  string timezone = 4;
+}
+
+// UserStatus represents the current state of a user
+enum UserStatus {
+  USER_STATUS_UNSPECIFIED = 0;
+  USER_STATUS_ACTIVE = 1;
+  USER_STATUS_INACTIVE = 2;
+  USER_STATUS_SUSPENDED = 3;
+  USER_STATUS_DELETED = 4;
+}
+
+// CreateUserRequest for creating new users
+message CreateUserRequest {
+  string name = 1;
+  string email = 2;
+  UserProfile profile = 3;
+}
+
+// UpdateUserRequest for updating existing users
+message UpdateUserRequest {
+  int64 id = 1;
+  string name = 2;
+  string email = 3;
+  UserProfile profile = 4;
+}
+
+// GetUserRequest for retrieving a user
+message GetUserRequest {
+  int64 id = 1;
+}
+
+// ListUsersRequest for listing users
+message ListUsersRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  string filter = 3;
+}
+
+// ListUsersResponse with paginated user results
+message ListUsersResponse {
+  repeated User users = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}

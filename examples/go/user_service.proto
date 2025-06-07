@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package user.service.v1;
+
+import "examples/go/user.proto";
+
+option go_package = "github.com/org/user/service/v1";
+
+// UserService provides CRUD operations for users
+service UserService {
+  // Creates a new user
+  rpc CreateUser(user.v1.CreateUserRequest) returns (user.v1.User);
+  
+  // Retrieves a user by ID
+  rpc GetUser(user.v1.GetUserRequest) returns (user.v1.User);
+  
+  // Updates an existing user
+  rpc UpdateUser(user.v1.UpdateUserRequest) returns (user.v1.User);
+  
+  // Deletes a user
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  
+  // Lists users with pagination
+  rpc ListUsers(user.v1.ListUsersRequest) returns (user.v1.ListUsersResponse);
+  
+  // Searches users by various criteria
+  rpc SearchUsers(SearchUsersRequest) returns (stream user.v1.User);
+  
+  // Bulk creates multiple users
+  rpc BulkCreateUsers(stream user.v1.CreateUserRequest) returns (BulkCreateUsersResponse);
+  
+  // Streams user updates in real-time
+  rpc StreamUserUpdates(StreamUserUpdatesRequest) returns (stream UserUpdateEvent);
+}
+
+// DeleteUserRequest for user deletion
+message DeleteUserRequest {
+  int64 id = 1;
+}
+
+// DeleteUserResponse confirms deletion
+message DeleteUserResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// SearchUsersRequest for advanced user search
+message SearchUsersRequest {
+  string query = 1;
+  repeated string fields = 2;
+  user.v1.UserStatus status = 3;
+  int32 limit = 4;
+}
+
+// BulkCreateUsersResponse for batch user creation
+message BulkCreateUsersResponse {
+  repeated user.v1.User created_users = 1;
+  repeated string errors = 2;
+  int32 success_count = 3;
+  int32 error_count = 4;
+}
+
+// StreamUserUpdatesRequest for real-time updates
+message StreamUserUpdatesRequest {
+  repeated int64 user_ids = 1;
+  bool include_profile_updates = 2;
+  bool include_status_changes = 3;
+}
+
+// UserUpdateEvent represents a user change event
+message UserUpdateEvent {
+  int64 user_id = 1;
+  UpdateType update_type = 2;
+  user.v1.User user = 3;
+  int64 timestamp = 4;
+}
+
+// UpdateType represents the type of user update
+enum UpdateType {
+  UPDATE_TYPE_UNSPECIFIED = 0;
+  UPDATE_TYPE_CREATED = 1;
+  UPDATE_TYPE_UPDATED = 2;
+  UPDATE_TYPE_DELETED = 3;
+  UPDATE_TYPE_STATUS_CHANGED = 4;
+}
+
+// HealthService for service health monitoring
+service HealthService {
+  // Checks the health of the user service
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+  
+  // Watches the health status continuously
+  rpc Watch(HealthCheckRequest) returns (stream HealthCheckResponse);
+}
+
+// HealthCheckRequest for health monitoring
+message HealthCheckRequest {
+  string service = 1;
+}
+
+// HealthCheckResponse provides health status
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+    SERVICE_UNKNOWN = 3;
+  }
+  
+  ServingStatus status = 1;
+  string message = 2;
+  repeated string details = 3;
+}

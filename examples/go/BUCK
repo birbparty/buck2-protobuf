@@ -1,0 +1,63 @@
+load("//rules:proto.bzl", "proto_library")
+load("//rules:go.bzl", "go_proto_library", "go_proto_messages", "go_grpc_library")
+
+# Basic protobuf library
+proto_library(
+    name = "user_proto",
+    srcs = ["user.proto"],
+    options = {
+        "go_package": "github.com/org/user/v1",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# Full Go protobuf + gRPC generation
+go_proto_library(
+    name = "user_go_proto",
+    proto = ":user_proto",
+    go_package = "github.com/org/user/v1",
+    go_module = "github.com/org/user",
+    plugins = ["go", "go-grpc"],
+    visibility = ["PUBLIC"],
+)
+
+# Messages-only generation (no gRPC)
+go_proto_messages(
+    name = "user_messages_go",
+    proto = ":user_proto",
+    go_package = "github.com/org/user/v1/messages",
+    visibility = ["PUBLIC"],
+)
+
+# Service definition proto with complex gRPC features
+proto_library(
+    name = "user_service_proto",
+    srcs = ["user_service.proto"],
+    deps = [":user_proto"],
+    options = {
+        "go_package": "github.com/org/user/service/v1",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# gRPC service generation
+go_grpc_library(
+    name = "user_service_go",
+    proto = ":user_service_proto",
+    go_package = "github.com/org/user/service/v1",
+    go_module = "github.com/org/user/service",
+    visibility = ["PUBLIC"],
+)
+
+# Example with additional options
+go_proto_library(
+    name = "user_advanced_go",
+    proto = ":user_proto", 
+    go_package = "github.com/org/user/advanced/v1",
+    plugins = ["go", "go-grpc"],
+    options = {
+        "go_paths": "source_relative",
+        "go_grpc_require_unimplemented_servers": "false",
+    },
+    visibility = ["PUBLIC"],
+)

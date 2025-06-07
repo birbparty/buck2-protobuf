@@ -356,7 +356,7 @@ def get_tool_requirements(language: str):
     language_tools = {
         "go": {
             "protoc-gen-go": "",
-            "protoc-gen-grpc-go": "",
+            "protoc-gen-go-grpc": "",
         },
         "python": {
             "protoc-gen-grpc-python": "",

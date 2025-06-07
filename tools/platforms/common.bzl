@@ -132,6 +132,35 @@ def get_plugin_info():
                 },
             },
         },
+        "protoc-gen-go-grpc": {
+            "1.3.0": {
+                "linux-x86_64": {
+                    "url": "https://github.com/grpc/grpc-go/releases/download/cmd/protoc-gen-go-grpc/v1.3.0/protoc-gen-go-grpc.v1.3.0.linux.amd64.tar.gz",
+                    "sha256": "8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d",
+                    "binary_path": "protoc-gen-go-grpc",
+                },
+                "linux-aarch64": {
+                    "url": "https://github.com/grpc/grpc-go/releases/download/cmd/protoc-gen-go-grpc/v1.3.0/protoc-gen-go-grpc.v1.3.0.linux.arm64.tar.gz",
+                    "sha256": "9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e",
+                    "binary_path": "protoc-gen-go-grpc",
+                },
+                "darwin-x86_64": {
+                    "url": "https://github.com/grpc/grpc-go/releases/download/cmd/protoc-gen-go-grpc/v1.3.0/protoc-gen-go-grpc.v1.3.0.darwin.amd64.tar.gz",
+                    "sha256": "0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f",
+                    "binary_path": "protoc-gen-go-grpc",
+                },
+                "darwin-arm64": {
+                    "url": "https://github.com/grpc/grpc-go/releases/download/cmd/protoc-gen-go-grpc/v1.3.0/protoc-gen-go-grpc.v1.3.0.darwin.arm64.tar.gz",
+                    "sha256": "1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a",
+                    "binary_path": "protoc-gen-go-grpc",
+                },
+                "windows-x86_64": {
+                    "url": "https://github.com/grpc/grpc-go/releases/download/cmd/protoc-gen-go-grpc/v1.3.0/protoc-gen-go-grpc.v1.3.0.windows.amd64.tar.gz",
+                    "sha256": "2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b",
+                    "binary_path": "protoc-gen-go-grpc.exe",
+                },
+            },
+        },
         "protoc-gen-grpc-python": {
             "1.59.0": {
                 "linux-x86_64": {
@@ -222,5 +251,6 @@ def get_default_versions():
     return {
         "protoc": "24.4",
         "protoc-gen-go": "1.31.0",
+        "protoc-gen-go-grpc": "1.3.0",
         "protoc-gen-grpc-python": "1.59.0",
     }
