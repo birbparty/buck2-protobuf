@@ -279,7 +279,7 @@ def _get_rule_version_hash():
         str: Rule version hash
     """
     # This should be updated whenever rule implementation changes
-    rule_version = "protobuf-buck2-v1.0.0-cache-optimization"
+    rule_version = "buck2-protobuf-v1.0.0-cache-optimization"
     return _hash_string_list([rule_version])
 
 def _hash_string_list(strings):
@@ -291,9 +291,21 @@ def _hash_string_list(strings):
     Returns:
         str: SHA-256 hash of the strings
     """
-    import hashlib
+    # Use the same deterministic hash as in cache_keys.bzl
     content = ":".join(strings)
-    return hashlib.sha256(content.encode()).hexdigest()[:16]  # Use first 16 chars
+    hash_value = 0
+    for char in content:
+        hash_value = (hash_value * 31 + ord(char)) % 4294967296  # 2^32
+    
+    # Convert to hex manually since hex() function isn't available in Starlark
+    hex_chars = "0123456789abcdef"
+    hex_str = ""
+    temp_value = hash_value
+    for _ in range(8):  # 8 hex digits for 32-bit value
+        hex_str = hex_chars[temp_value % 16] + hex_str
+        temp_value //= 16
+    
+    return hex_str[:16]  # Use first 16 chars like original
 
 def _validate_cached_artifacts(artifacts, cache_info, cache_config):
     """Validates cached artifacts for integrity and freshness.

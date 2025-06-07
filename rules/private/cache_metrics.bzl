@@ -171,23 +171,23 @@ def _generate_cache_report_content(metrics):
         "# Cache Performance Report",
         "",
         "## Overall Performance",
-        f"- Cache Hit Rate: {metrics['hit_rate']:.1f}%",
-        f"- Cache Miss Rate: {metrics['miss_rate']:.1f}%",
-        f"- Total Lookups: {metrics['total_lookups']}",
-        f"- Average Hit Time: {metrics['avg_hit_time_ms']:.1f}ms",
-        f"- Average Miss Time: {metrics['avg_miss_time_ms']:.1f}ms",
-        f"- Cache Size: {metrics['cache_size_mb']:.1f}MB",
-        f"- Cache Evictions: {metrics['eviction_count']}",
+        "- Cache Hit Rate: {:.1f}%".format(metrics['hit_rate']),
+        "- Cache Miss Rate: {:.1f}%".format(metrics['miss_rate']),
+        "- Total Lookups: {}".format(metrics['total_lookups']),
+        "- Average Hit Time: {:.1f}ms".format(metrics['avg_hit_time_ms']),
+        "- Average Miss Time: {:.1f}ms".format(metrics['avg_miss_time_ms']),
+        "- Cache Size: {:.1f}MB".format(metrics['cache_size_mb']),
+        "- Cache Evictions: {}".format(metrics['eviction_count']),
         "",
         "## Language Breakdown",
     ]
     
     for language, lang_metrics in metrics.get("language_breakdown", {}).items():
         lines.extend([
-            f"### {language.title()}",
-            f"- Hit Rate: {lang_metrics['hit_rate']:.1f}%",
-            f"- Lookups: {lang_metrics['lookups']}",
-            f"- Avg Hit Time: {lang_metrics['avg_hit_time_ms']:.1f}ms",
+            "### {}".format(language.title()),
+            "- Hit Rate: {:.1f}%".format(lang_metrics['hit_rate']),
+            "- Lookups: {}".format(lang_metrics['lookups']),
+            "- Avg Hit Time: {:.1f}ms".format(lang_metrics['avg_hit_time_ms']),
             "",
         ])
     
@@ -196,13 +196,13 @@ def _generate_cache_report_content(metrics):
     
     lines.extend([
         "## Cache Health",
-        f"- Health Score: {health_score}/100",
+        "- Health Score: {}/100".format(health_score),
         "",
         "## Recommendations",
     ])
     
     for i, rec in enumerate(recommendations, 1):
-        lines.append(f"{i}. {rec}")
+        lines.append("{}. {}".format(i, rec))
     
     return "\n".join(lines)
 
@@ -288,7 +288,7 @@ def _generate_cache_recommendations(metrics):
     for language, lang_metrics in lang_breakdown.items():
         lang_hit_rate = lang_metrics.get("hit_rate", 0)
         if lang_hit_rate < hit_rate - 10:
-            recommendations.append(f"{language.title()} has significantly lower hit rate. Review {language}-specific cache configuration.")
+            recommendations.append("{} has significantly lower hit rate. Review {}-specific cache configuration.".format(language.title(), language))
     
     if not recommendations:
         recommendations.append("Cache performance is good. Continue monitoring for optimization opportunities.")
@@ -366,7 +366,7 @@ def _identify_performance_bottlenecks(metrics):
         bottlenecks.append({
             "type": "slow_cache_access",
             "severity": "high" if avg_hit_time > 30 else "medium",
-            "description": f"Cache access time ({avg_hit_time:.1f}ms) is higher than optimal",
+            "description": "Cache access time ({:.1f}ms) is higher than optimal".format(avg_hit_time),
         })
     
     hit_rate = metrics.get("hit_rate", 0)
@@ -374,7 +374,7 @@ def _identify_performance_bottlenecks(metrics):
         bottlenecks.append({
             "type": "low_hit_rate",
             "severity": "high" if hit_rate < 70 else "medium",
-            "description": f"Cache hit rate ({hit_rate:.1f}%) is below target",
+            "description": "Cache hit rate ({:.1f}%) is below target".format(hit_rate),
         })
     
     eviction_count = metrics.get("eviction_count", 0)

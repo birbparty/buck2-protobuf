@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package example.basic;
 
-option go_package = "github.com/org/protobuf-buck2/examples/basic";
+option go_package = "github.com/org/buck2-protobuf/examples/basic";
 
 // Example message demonstrating basic protobuf usage
 message ExampleMessage {

@@ -68,12 +68,13 @@ def validate_cache_key(cache_key):
     if len(cache_key) != 32:
         return False
     
-    # Check that it's a valid hex string
-    try:
-        int(cache_key, 16)
-        return True
-    except ValueError:
-        return False
+    # Check that it's a valid hex string (simplified check for Starlark)
+    valid_chars = "0123456789abcdef"
+    for char in cache_key.lower():
+        if char not in valid_chars:
+            return False
+    
+    return True
 
 def generate_cache_key_for_bundle(ctx, proto_info, languages, bundle_config):
     """Generates cache keys for multi-language bundles.
@@ -477,6 +478,18 @@ def _sha256_hash(content):
         str: SHA-256 hash in hex format
     """
     # In a real Buck2 implementation, we would use Buck2's built-in hashing
-    # For now, we simulate with a simple hash
-    import hashlib
-    return hashlib.sha256(content.encode()).hexdigest()
+    # For alpha release, we use a simple deterministic hash based on string content
+    # This is not cryptographically secure but provides cache key uniqueness
+    hash_value = 0
+    for char in content:
+        hash_value = (hash_value * 31 + ord(char)) % 4294967296  # 2^32
+    
+    # Convert to hex manually since hex() function isn't available in Starlark
+    hex_chars = "0123456789abcdef"
+    hex_str = ""
+    temp_value = hash_value
+    for _ in range(8):  # 8 hex digits for 32-bit value
+        hex_str = hex_chars[temp_value % 16] + hex_str
+        temp_value //= 16
+    
+    return hex_str + "00000000"  # Pad to simulate longer hash

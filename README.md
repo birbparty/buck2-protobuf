@@ -1,4 +1,4 @@
-# Protobuf Buck2 Integration
+# Buck2 Protobuf Integration
 
 A world-class Buck2 integration for Protocol Buffers supporting multi-language code generation.
 
@@ -9,7 +9,7 @@ This project provides production-ready Buck2 rules for Protocol Buffers that ena
 ## 📁 Project Structure
 
 ```
-protobuf-buck2/
+buck2-protobuf/
 ├── .buckconfig              # Buck2 configuration
 ├── .buckroot               # Buck2 root marker  
 ├── BUCK                    # Root build targets
@@ -41,40 +41,135 @@ protobuf-buck2/
 └── platforms/             # Buck2 platform configurations
 ```
 
-## ⚡ Quick Start
+## ⚡ Quick Start (< 5 minutes)
 
 ### Prerequisites
 
-- Buck2 >= 2023.11.01
-- Protocol Buffers >= 24.4
-- Git >= 2.20
+- **Buck2** >= 2023.11.01 ([Installation Guide](https://buck2.build/docs/getting_started/))
+- **Protocol Buffers** >= 24.4 ([Download](https://github.com/protocolbuffers/protobuf/releases))
+- **Git** >= 2.20
 
-### Setup
+### Setup Your Project
 
+1. **Add buck2-protobuf to your project**:
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd protobuf-buck2
-
-# Verify Buck2 setup
-buck2 build //...
-
-# Run tests (when implemented)
-buck2 test //...
+# Clone into your project or add as git submodule
+git submodule add git@github.com:birbparty/buck2-protobuf.git third-party/buck2-protobuf
 ```
 
-### Basic Usage
+2. **Configure Buck2** in your `.buckconfig`:
+```ini
+[cells]
+protobuf = third-party/buck2-protobuf
 
+[parser]
+target_platform_detector_spec = target:protobuf//platforms:default
+```
+
+### Your First Proto Library (2 minutes)
+
+1. **Create a proto file** (`user.proto`):
+```protobuf
+syntax = "proto3";
+package user.v1;
+
+message User {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+}
+
+service UserService {
+  rpc GetUser(GetUserRequest) returns (User);
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+```
+
+2. **Define proto_library in BUCK**:
 ```python
-# In your BUCK file
-load("//rules:proto.bzl", "proto_library")
+load("@protobuf//rules:proto.bzl", "proto_library")
 
 proto_library(
-    name = "my_proto",
-    srcs = ["my_service.proto"],
+    name = "user_proto",
+    srcs = ["user.proto"],
+    options = {
+        "go_package": "github.com/your-org/user/v1",
+    },
     visibility = ["PUBLIC"],
 )
 ```
+
+3. **Generate Go code**:
+```python
+load("@protobuf//rules:go.bzl", "go_proto_library")
+
+go_proto_library(
+    name = "user_go",
+    proto = ":user_proto",
+    go_package = "github.com/your-org/user/v1",
+    visibility = ["PUBLIC"],
+)
+```
+
+4. **Build and verify**:
+```bash
+buck2 build //:user_go
+# ✅ Generated Go code ready in buck-out/
+```
+
+🎉 **You're done!** Generated code includes:
+- `user.pb.go` - Message definitions
+- `user_grpc.pb.go` - gRPC service stubs
+- Full type safety and documentation
+
+### Language Examples
+
+**Python Generation:**
+```python
+load("@protobuf//rules:python.bzl", "python_proto_library")
+
+python_proto_library(
+    name = "user_py",
+    proto = ":user_proto",
+    visibility = ["PUBLIC"],
+)
+```
+
+**TypeScript Generation:**
+```python
+load("@protobuf//rules:typescript.bzl", "typescript_proto_library")
+
+typescript_proto_library(
+    name = "user_ts",
+    proto = ":user_proto",
+    visibility = ["PUBLIC"],
+)
+```
+
+**Multi-Language Bundle:**
+```python
+load("@protobuf//rules:proto.bzl", "proto_bundle")
+
+proto_bundle(
+    name = "user_bundle",
+    proto = ":user_proto",
+    languages = {
+        "go": {"go_package": "github.com/your-org/user/v1"},
+        "python": {"python_package": "your_org.user.v1"},
+        "typescript": {"npm_package": "@your-org/user-v1"},
+    },
+    visibility = ["PUBLIC"],
+)
+```
+
+### Next Steps
+- 📖 Read the [Complete API Reference](docs/rules-reference.md)
+- 🔧 Check [Troubleshooting Guide](docs/troubleshooting.md) if you hit issues  
+- 🚀 Explore [Advanced Examples](examples/) for complex scenarios
+- 📈 Review [Performance Guide](docs/performance.md) for optimization
 
 ## 🎯 Features
 

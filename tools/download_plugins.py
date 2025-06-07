@@ -190,7 +190,7 @@ class PluginDownloader:
                 
                 # Create request with proper headers
                 req = urllib.request.Request(url)
-                req.add_header('User-Agent', 'protobuf-buck2-plugin-downloader/1.0')
+                req.add_header('User-Agent', 'buck2-protobuf-plugin-downloader/1.0')
                 
                 # Download with progress tracking
                 with urllib.request.urlopen(req, timeout=30) as response:

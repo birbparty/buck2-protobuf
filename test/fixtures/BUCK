@@ -6,7 +6,7 @@ proto_library(
     name = "simple_proto",
     srcs = ["simple.proto"],
     options = {
-        "go_package": "github.com/org/protobuf-buck2/test/simple",
+        "go_package": "github.com/org/buck2-protobuf/test/simple",
     },
     visibility = ["PUBLIC"],
 )
@@ -16,7 +16,7 @@ proto_library(
     srcs = ["complex.proto"],
     deps = [":simple_proto"],
     options = {
-        "go_package": "github.com/org/protobuf-buck2/test/complex",
+        "go_package": "github.com/org/buck2-protobuf/test/complex",
     },
     visibility = ["PUBLIC"],
 )
@@ -26,7 +26,7 @@ proto_library(
     srcs = ["service.proto"],
     deps = [":simple_proto"],
     options = {
-        "go_package": "github.com/org/protobuf-buck2/test/service",
+        "go_package": "github.com/org/buck2-protobuf/test/service",
     },
     visibility = ["PUBLIC"],
 )

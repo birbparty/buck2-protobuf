@@ -212,9 +212,9 @@ def get_cache_statistics(cache_storage_path):
         
         # Track oldest and newest entries
         entry_time = entry_info["creation_time"]
-        if oldest_entry is None or entry_time < oldest_entry:
+        if oldest_entry == None or entry_time < oldest_entry:
             oldest_entry = entry_time
-        if newest_entry is None or entry_time > newest_entry:
+        if newest_entry == None or entry_time > newest_entry:
             newest_entry = entry_time
     
     return {

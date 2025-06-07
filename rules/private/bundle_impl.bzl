@@ -254,7 +254,10 @@ def _validate_api_surface_consistency(language_targets, proto_info):
         plugins = config["plugins"]
         
         # Check if gRPC services are consistently enabled/disabled
-        has_grpc = any("grpc" in plugin.lower() for plugin in plugins)
+        grpc_checks = []
+        for plugin in plugins:
+            grpc_checks.append("grpc" in plugin.lower())
+        has_grpc = any(grpc_checks)
         
         # Store for cross-language comparison
         # This is simplified - full implementation would parse proto definitions

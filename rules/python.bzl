@@ -492,7 +492,9 @@ python_proto_library_rule = rule(
         "generate_stubs": attrs.bool(default = True, doc = "Generate .pyi type stub files"),
         "mypy_support": attrs.bool(default = True, doc = "Enable mypy compatibility features"),
         "options": attrs.dict(attrs.string(), attrs.string(), default = {}, doc = "Additional protoc options"),
-        **TOOL_ATTRS
+        "_protoc": attrs.exec_dep(default = "//tools:protoc"),
+        "_protoc_gen_python": attrs.exec_dep(default = "//tools:protoc-gen-python", doc = "Python protoc plugin"),
+        "_protoc_gen_grpc_python": attrs.exec_dep(default = "//tools:protoc-gen-grpc-python", doc = "Python gRPC protoc plugin"),
     },
 )
 

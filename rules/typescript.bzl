@@ -239,7 +239,6 @@ def _create_package_json_content(npm_package: str, module_type: str) -> str:
     # Add gRPC-Web dependencies if needed
     # This will be set during rule execution based on actual plugins used
     
-    import json
     return json.encode_indent(package_config, indent = "  ")
 
 def _create_tsconfig_json_content(module_type: str, typescript_version: str) -> str:
@@ -287,7 +286,6 @@ def _create_tsconfig_json_content(module_type: str, typescript_version: str) -> 
         tsconfig["compilerOptions"]["module"] = "ESNext"
         tsconfig["compilerOptions"]["moduleResolution"] = "bundler"
     
-    import json
     return json.encode_indent(tsconfig, indent = "  ")
 
 def _create_index_ts_content(proto_info) -> str:
@@ -528,7 +526,10 @@ typescript_proto_library_rule = rule(
         "options": attrs.dict(attrs.string(), attrs.string(), default = {}, doc = "Additional protoc options"),
         "typescript_version": attrs.string(default = "5.0", doc = "Target TypeScript version"),
         "module_type": attrs.string(default = "esm", doc = "Module system (esm, commonjs, both)"),
-        **TOOL_ATTRS
+        "_protoc": attrs.exec_dep(default = "//tools:protoc"),
+        "_protoc_gen_ts": attrs.exec_dep(default = "//tools:protoc-gen-ts", doc = "TypeScript protoc plugin"),
+        "_protoc_gen_grpc_web": attrs.exec_dep(default = "//tools:protoc-gen-grpc-web", doc = "gRPC-Web protoc plugin"),
+        "_ts_proto": attrs.exec_dep(default = "//tools:ts-proto", doc = "ts-proto protoc plugin"),
     },
 )
 

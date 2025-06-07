@@ -1,3 +1,7 @@
 proompts/
 **/__pycache__/
 buck-out/
+
+qa/results/
+
+test/reports/

@@ -48,58 +48,48 @@ def optimize_proto_compilation(ctx, proto_files, language_configs, cache_config)
     # Start performance monitoring
     perf_metrics = _start_performance_monitoring(ctx, perf_config)
     
-    try:
-        # Optimize compilation strategy based on file count and languages
-        compilation_strategy = _determine_compilation_strategy(
+    # Determine optimal compilation strategy
+    compilation_strategy = _determine_compilation_strategy(proto_files, language_configs, perf_config)
+    
+    # Execute compilation based on strategy
+    if compilation_strategy == "parallel_batch":
+        results = _execute_parallel_batch_compilation(
+            ctx, 
             proto_files, 
             language_configs, 
+            cache_config, 
             perf_config
         )
-        
-        # Execute optimized compilation
-        if compilation_strategy == "parallel_batch":
-            results = _execute_parallel_batch_compilation(
-                ctx, 
-                proto_files, 
-                language_configs, 
-                cache_config, 
-                perf_config
-            )
-        elif compilation_strategy == "concurrent_language":
-            results = _execute_concurrent_language_compilation(
-                ctx, 
-                proto_files, 
-                language_configs, 
-                cache_config, 
-                perf_config
-            )
-        else:
-            results = _execute_sequential_compilation(
-                ctx, 
-                proto_files, 
-                language_configs, 
-                cache_config, 
-                perf_config
-            )
-        
-        # Finalize performance monitoring
-        final_metrics = _finalize_performance_monitoring(perf_metrics)
-        
-        return PerformanceInfo(
-            compilation_time_ms = final_metrics.compilation_time_ms,
-            memory_peak_mb = final_metrics.memory_peak_mb,
-            cpu_utilization = final_metrics.cpu_utilization,
-            cache_hit_rate = final_metrics.cache_hit_rate,
-            parallel_efficiency = final_metrics.parallel_efficiency,
-            strategy_used = compilation_strategy,
-            artifacts = results.get("artifacts", []),
-            performance_metrics = final_metrics,
+    elif compilation_strategy == "concurrent_language":
+        results = _execute_concurrent_language_compilation(
+            ctx, 
+            proto_files, 
+            language_configs, 
+            cache_config, 
+            perf_config
         )
-        
-    except Exception as e:
-        # Record performance failure
-        _record_performance_failure(ctx, str(e), perf_metrics)
-        fail("Performance optimization failed: {}".format(e))
+    else:
+        results = _execute_sequential_compilation(
+            ctx, 
+            proto_files, 
+            language_configs, 
+            cache_config, 
+            perf_config
+        )
+    
+    # Finalize performance monitoring
+    final_metrics = _finalize_performance_monitoring(perf_metrics)
+    
+    return PerformanceInfo(
+        compilation_time_ms = final_metrics.compilation_time_ms,
+        memory_peak_mb = final_metrics.memory_peak_mb,
+        cpu_utilization = final_metrics.cpu_utilization,
+        cache_hit_rate = final_metrics.cache_hit_rate,
+        parallel_efficiency = final_metrics.parallel_efficiency,
+        strategy_used = compilation_strategy,
+        artifacts = results.get("artifacts", []),
+        performance_metrics = final_metrics,
+    )
 
 def _determine_compilation_strategy(proto_files, language_configs, perf_config):
     """Determines the optimal compilation strategy based on workload.
@@ -408,9 +398,8 @@ def _generate_batch_cache_key(proto_batch, language, config):
     batch_signature = ":".join(sorted(batch_paths))
     config_signature = str(sorted(config.items())) if config else ""
     
-    import hashlib
     content = "{}:{}:{}".format(batch_signature, language, config_signature)
-    return hashlib.sha256(content.encode()).hexdigest()[:16]
+    return str(hash(content))[:16]
 
 def _generate_language_cache_key(proto_files, language, config):
     """Generates cache key for proto files and language.
@@ -427,9 +416,8 @@ def _generate_language_cache_key(proto_files, language, config):
     files_signature = ":".join(sorted(file_paths))
     config_signature = str(sorted(config.items())) if config else ""
     
-    import hashlib
     content = "{}:{}:{}".format(files_signature, language, config_signature)
-    return hashlib.sha256(content.encode()).hexdigest()[:16]
+    return str(hash(content))[:16]
 
 def _start_performance_monitoring(ctx, perf_config):
     """Starts performance monitoring for compilation.
@@ -444,10 +432,9 @@ def _start_performance_monitoring(ctx, perf_config):
     if not perf_config.get("performance_monitoring", True):
         return {}
     
-    import time
-    
+    # Use a simple timestamp (in real implementation would use actual time)
     return {
-        "start_time": time.time(),
+        "start_time": 0,  # Would use actual timestamp
         "initial_memory": 0,  # Would use actual memory measurement
         "cache_lookups": 0,
         "cache_hits": 0,
@@ -472,8 +459,8 @@ def _finalize_performance_monitoring(perf_metrics):
             parallel_efficiency = 0,
         )
     
-    import time
-    end_time = time.time()
+    # Use placeholder timestamp (in real implementation would use actual time)
+    end_time = 1000  # Placeholder timestamp
     compilation_time_ms = (end_time - perf_metrics.get("start_time", end_time)) * 1000
     
     cache_hit_rate = 0

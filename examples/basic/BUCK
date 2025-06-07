@@ -6,8 +6,8 @@ proto_library(
     name = "example_proto",
     srcs = ["example.proto"],
     options = {
-        "go_package": "github.com/org/protobuf-buck2/examples/basic",
-        "java_package": "com.org.protobuf_buck2.examples.basic",
+        "go_package": "github.com/org/buck2-protobuf/examples/basic",
+        "java_package": "com.org.buck2_protobuf.examples.basic",
         "python_package": "org.protobuf_buck2.examples.basic",
     },
     visibility = ["PUBLIC"],

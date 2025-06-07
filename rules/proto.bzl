@@ -2,7 +2,7 @@
 
 This module provides the fundamental protobuf rules that serve as the foundation
 for all language-specific code generation. These rules handle proto compilation,
-dependency resolution, and provide the base infrastructure for the protobuf-buck2
+dependency resolution, and provide the base infrastructure for the buck2-protobuf
 integration.
 
 The rules defined here follow the API specification and are implemented in Task 002.

@@ -332,7 +332,9 @@ go_proto_library_rule = rule(
         "options": attrs.dict(attrs.string(), attrs.string(), default = {}, doc = "Additional protoc options"),
         "go_module": attrs.string(default = "", doc = "Go module name for go.mod file"),
         "embed": attrs.list(attrs.source(), default = [], doc = "Additional files to embed"),
-        **TOOL_ATTRS
+        "_protoc": attrs.exec_dep(default = "//tools:protoc"),
+        "_protoc_gen_go": attrs.exec_dep(default = "//tools:protoc-gen-go", doc = "Go protoc plugin"),
+        "_protoc_gen_go_grpc": attrs.exec_dep(default = "//tools:protoc-gen-go-grpc", doc = "Go gRPC protoc plugin"),
     },
 )
 

@@ -496,7 +496,9 @@ cpp_proto_library_rule = rule(
         "use_grpc": attrs.bool(default = False, doc = "Generate gRPC C++ service code"),
         "cpp_standard": attrs.string(default = "c++17", doc = "C++ standard to use"),
         "link_type": attrs.string(default = "static", doc = "Library linking type"),
-        **TOOL_ATTRS
+        "_protoc": attrs.exec_dep(default = "//tools:protoc"),
+        "_protoc_gen_cpp": attrs.exec_dep(default = "//tools:protoc-gen-cpp", doc = "C++ protoc plugin"),
+        "_protoc_gen_grpc_cpp": attrs.exec_dep(default = "//tools:protoc-gen-grpc-cpp", doc = "C++ gRPC protoc plugin"),
     },
 )
 
