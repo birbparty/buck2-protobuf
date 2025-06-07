@@ -1,0 +1,143 @@
+"""Security example demonstrating comprehensive security features.
+
+This example shows how to configure and use security features including
+sandboxing, input validation, tool integrity, and audit logging.
+"""
+
+load("//rules:proto.bzl", "proto_library")
+load("//rules:go.bzl", "go_proto_library")
+load("//rules:python.bzl", "python_proto_library")
+load("//rules:security.bzl", "security_config", "security_audit")
+
+# Security configurations for different environments
+
+# Enterprise/Production security configuration
+security_config(
+    name = "enterprise_security",
+    security_level = "strict",
+    sandbox_enabled = True,
+    network_allowed = False,
+    max_memory_mb = 1024,
+    max_cpu_time_seconds = 300,
+    max_processes = 1,
+    input_sanitization = True,
+    tool_validation = True,
+    generated_code_validation = True,
+    audit_logging = True,
+    visibility = ["PUBLIC"],
+)
+
+# Development security configuration  
+security_config(
+    name = "development_security",
+    security_level = "standard",
+    sandbox_enabled = True,
+    network_allowed = False,
+    max_memory_mb = 2048,
+    max_cpu_time_seconds = 600,
+    max_processes = 1,
+    input_sanitization = True,
+    tool_validation = True,
+    generated_code_validation = True,
+    audit_logging = False,  # Reduced logging for development
+    visibility = ["PUBLIC"],
+)
+
+# Restricted security configuration for high-security environments
+security_config(
+    name = "restricted_security",
+    security_level = "strict",
+    sandbox_enabled = True,
+    network_allowed = False,
+    max_memory_mb = 512,     # Very limited memory
+    max_cpu_time_seconds = 180,  # Short time limit
+    max_processes = 1,
+    read_only_paths = [
+        "proto_files/**",
+        "dependencies/**",
+        "tools/**",
+    ],
+    write_paths = [
+        "output/**",
+    ],
+    allowed_env_vars = [
+        "PATH",
+        "TMPDIR",
+    ],
+    input_sanitization = True,
+    tool_validation = True,
+    generated_code_validation = True,
+    audit_logging = True,
+    visibility = ["//security:__pkg__"],
+)
+
+# Example protobuf library with security configuration
+proto_library(
+    name = "secure_example_proto",
+    srcs = [
+        "user.proto",
+        "security_types.proto",
+    ],
+    options = {
+        "go_package": "github.com/example/secure/v1",
+        "java_package": "com.example.secure.v1",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# Go code generation with enterprise security
+go_proto_library(
+    name = "secure_example_go",
+    proto = ":secure_example_proto",
+    visibility = ["PUBLIC"],
+)
+
+# Python code generation with enterprise security  
+python_proto_library(
+    name = "secure_example_python",
+    proto = ":secure_example_proto",
+    visibility = ["PUBLIC"],
+)
+
+# Comprehensive security audit for all targets
+security_audit(
+    name = "security_audit_report",
+    targets = [
+        ":secure_example_proto",
+        ":secure_example_go", 
+        ":secure_example_python",
+    ],
+    output_format = "json",
+    include_tool_validations = True,
+    include_code_validations = True,
+    include_audit_logs = True,
+    visibility = ["PUBLIC"],
+)
+
+# Security audit for compliance reporting
+security_audit(
+    name = "compliance_audit_report",
+    targets = [
+        ":secure_example_proto",
+        ":secure_example_go",
+        ":secure_example_python",
+    ],
+    output_format = "json",
+    include_tool_validations = True,
+    include_code_validations = True,
+    include_audit_logs = True,
+    visibility = ["//compliance:__pkg__"],
+)
+
+# Minimal security audit for development
+security_audit(
+    name = "dev_security_check",
+    targets = [
+        ":secure_example_proto",
+    ],
+    output_format = "text",
+    include_tool_validations = False,
+    include_code_validations = True,
+    include_audit_logs = False,
+    visibility = ["//dev:__pkg__"],
+)

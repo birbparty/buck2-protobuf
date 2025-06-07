@@ -154,3 +154,46 @@ CacheValidationInfo = provider(fields = [
     "expiry_check",        # Whether cache entry has not expired
     "corruption_detected", # Whether any corruption was detected
 ])
+
+# SecurityAuditInfo provider - comprehensive security audit information
+SecurityAuditInfo = provider(fields = [
+    "audit_logs",          # List of security audit log files
+    "security_reports",    # List of security validation reports
+    "tool_validations",    # List of tool integrity validation files
+    "target",              # Target being audited
+    "timestamp",           # Audit timestamp
+    "security_level",      # Security level applied (strict, standard, etc.)
+    "sandbox_enabled",     # Whether sandboxing was enabled
+])
+
+# SandboxConfigInfo provider - sandbox configuration information
+SandboxConfigInfo = provider(fields = [
+    "network_allowed",     # Whether network access is allowed
+    "max_memory_mb",       # Maximum memory limit in MB
+    "max_cpu_time_seconds", # Maximum CPU time in seconds
+    "max_processes",       # Maximum number of processes
+    "read_only_paths",     # List of read-only path patterns
+    "write_paths",         # List of writable path patterns
+    "allowed_env_vars",    # List of allowed environment variables
+])
+
+# SecurityReportInfo provider - security validation report
+SecurityReportInfo = provider(fields = [
+    "language",            # Target language analyzed
+    "generated_files",     # Files that were analyzed
+    "vulnerabilities",     # List of security vulnerabilities found
+    "warnings",            # List of security warnings
+    "passed",              # Boolean indicating if security check passed
+    "scan_timestamp",      # When the security scan was performed
+    "scanner_version",     # Version of security scanner used
+])
+
+# ToolIntegrityInfo provider - tool integrity validation information
+ToolIntegrityInfo = provider(fields = [
+    "tool_path",           # Path to the validated tool
+    "expected_checksum",   # Expected SHA256 checksum
+    "actual_checksum",     # Actual SHA256 checksum
+    "validation_passed",   # Whether validation passed
+    "validation_time",     # When validation was performed
+    "tool_version",        # Version of the tool validated
+])

@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package example.security.v1;
+
+option go_package = "github.com/example/secure/v1";
+option java_package = "com.example.secure.v1";
+option java_multiple_files = true;
+
+import "examples/security/security_types.proto";
+
+// User management service with security-focused design
+service UserService {
+  // Create a new user with security validation
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  
+  // Get user information with access controls
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  
+  // Update user with audit logging
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  
+  // Delete user with security confirmation
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+}
+
+// User creation request with input validation
+message CreateUserRequest {
+  // User details (validated input)
+  UserInfo user_info = 1;
+  
+  // Security context for the request
+  SecurityContext security_context = 2;
+}
+
+message CreateUserResponse {
+  // Created user ID
+  string user_id = 1;
+  
+  // Security audit trail
+  AuditTrail audit_trail = 2;
+}
+
+message GetUserRequest {
+  // User ID to retrieve
+  string user_id = 1;
+  
+  // Security context for access control
+  SecurityContext security_context = 2;
+}
+
+message GetUserResponse {
+  // User information (filtered based on permissions)
+  UserInfo user_info = 1;
+  
+  // Access control metadata
+  AccessControlMetadata access_metadata = 2;
+}
+
+message UpdateUserRequest {
+  // User ID to update
+  string user_id = 1;
+  
+  // Updated user information
+  UserInfo user_info = 2;
+  
+  // Security context for authorization
+  SecurityContext security_context = 3;
+}
+
+message UpdateUserResponse {
+  // Success status
+  bool success = 1;
+  
+  // Security audit trail
+  AuditTrail audit_trail = 2;
+}
+
+message DeleteUserRequest {
+  // User ID to delete
+  string user_id = 1;
+  
+  // Security confirmation token
+  string confirmation_token = 2;
+  
+  // Security context
+  SecurityContext security_context = 3;
+}
+
+message DeleteUserResponse {
+  // Success status
+  bool success = 1;
+  
+  // Security audit trail
+  AuditTrail audit_trail = 2;
+}
+
+// User information with security considerations
+message UserInfo {
+  // Basic user details
+  string user_id = 1;
+  string username = 2;
+  string email = 3;
+  
+  // Security-related fields
+  SecurityLevel security_level = 4;
+  repeated string permissions = 5;
+  
+  // Metadata
+  int64 created_at = 6;
+  int64 updated_at = 7;
+}

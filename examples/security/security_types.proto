@@ -1,0 +1,214 @@
+syntax = "proto3";
+
+package example.security.v1;
+
+option go_package = "github.com/example/secure/v1";
+option java_package = "com.example.secure.v1";
+option java_multiple_files = true;
+
+// Security level enumeration
+enum SecurityLevel {
+  SECURITY_LEVEL_UNSPECIFIED = 0;
+  SECURITY_LEVEL_LOW = 1;
+  SECURITY_LEVEL_MEDIUM = 2;
+  SECURITY_LEVEL_HIGH = 3;
+  SECURITY_LEVEL_CRITICAL = 4;
+}
+
+// Authentication method enumeration
+enum AuthenticationMethod {
+  AUTHENTICATION_METHOD_UNSPECIFIED = 0;
+  AUTHENTICATION_METHOD_PASSWORD = 1;
+  AUTHENTICATION_METHOD_MFA = 2;
+  AUTHENTICATION_METHOD_CERTIFICATE = 3;
+  AUTHENTICATION_METHOD_BIOMETRIC = 4;
+}
+
+// Access control action enumeration
+enum AccessAction {
+  ACCESS_ACTION_UNSPECIFIED = 0;
+  ACCESS_ACTION_READ = 1;
+  ACCESS_ACTION_WRITE = 2;
+  ACCESS_ACTION_DELETE = 3;
+  ACCESS_ACTION_ADMIN = 4;
+}
+
+// Security context for all operations
+message SecurityContext {
+  // Authentication information
+  string user_id = 1;
+  string session_id = 2;
+  AuthenticationMethod auth_method = 3;
+  
+  // Authorization details
+  repeated string roles = 4;
+  repeated string permissions = 5;
+  SecurityLevel required_level = 6;
+  
+  // Request metadata
+  string client_ip = 7;
+  string user_agent = 8;
+  int64 timestamp = 9;
+  
+  // Security tokens
+  string access_token = 10;
+  string csrf_token = 11;
+}
+
+// Audit trail for security events
+message AuditTrail {
+  // Event identification
+  string event_id = 1;
+  string event_type = 2;
+  AccessAction action = 3;
+  
+  // Timing information
+  int64 timestamp = 4;
+  int64 duration_ms = 5;
+  
+  // Actor information
+  string user_id = 6;
+  string session_id = 7;
+  string client_ip = 8;
+  
+  // Resource information
+  string resource_type = 9;
+  string resource_id = 10;
+  
+  // Result information
+  bool success = 11;
+  string error_code = 12;
+  string error_message = 13;
+  
+  // Security metadata
+  SecurityLevel security_level = 14;
+  string risk_score = 15;
+  repeated string security_flags = 16;
+}
+
+// Access control metadata
+message AccessControlMetadata {
+  // Permission information
+  repeated string granted_permissions = 1;
+  repeated string denied_permissions = 2;
+  SecurityLevel effective_level = 3;
+  
+  // Filtering information
+  repeated string filtered_fields = 4;
+  string filter_reason = 5;
+  
+  // Rate limiting
+  RateLimitInfo rate_limit = 6;
+}
+
+// Rate limiting information
+message RateLimitInfo {
+  // Limit configuration
+  int32 requests_per_minute = 1;
+  int32 requests_per_hour = 2;
+  int32 requests_per_day = 3;
+  
+  // Current usage
+  int32 current_minute_count = 4;
+  int32 current_hour_count = 5;
+  int32 current_day_count = 6;
+  
+  // Reset times
+  int64 minute_reset_time = 7;
+  int64 hour_reset_time = 8;
+  int64 day_reset_time = 9;
+}
+
+// Security event for monitoring
+message SecurityEvent {
+  // Event identification
+  string event_id = 1;
+  string event_type = 2;
+  SecurityEventSeverity severity = 3;
+  
+  // Timing
+  int64 timestamp = 4;
+  
+  // Source information
+  string source_ip = 5;
+  string user_agent = 6;
+  string user_id = 7;
+  
+  // Event details
+  string description = 8;
+  map<string, string> metadata = 9;
+  
+  // Risk assessment
+  string risk_score = 10;
+  repeated string indicators = 11;
+}
+
+// Security event severity levels
+enum SecurityEventSeverity {
+  SECURITY_EVENT_SEVERITY_UNSPECIFIED = 0;
+  SECURITY_EVENT_SEVERITY_INFO = 1;
+  SECURITY_EVENT_SEVERITY_LOW = 2;
+  SECURITY_EVENT_SEVERITY_MEDIUM = 3;
+  SECURITY_EVENT_SEVERITY_HIGH = 4;
+  SECURITY_EVENT_SEVERITY_CRITICAL = 5;
+}
+
+// Security policy configuration
+message SecurityPolicy {
+  // Policy identification
+  string policy_id = 1;
+  string policy_name = 2;
+  string version = 3;
+  
+  // Authentication requirements
+  repeated AuthenticationMethod required_auth_methods = 4;
+  SecurityLevel minimum_security_level = 5;
+  
+  // Access control rules
+  repeated AccessRule access_rules = 6;
+  
+  // Rate limiting
+  RateLimitConfig rate_limit_config = 7;
+  
+  // Audit requirements
+  bool audit_required = 8;
+  repeated string audit_events = 9;
+}
+
+// Access control rule
+message AccessRule {
+  // Rule identification
+  string rule_id = 1;
+  string rule_name = 2;
+  
+  // Conditions
+  repeated string required_roles = 3;
+  repeated string required_permissions = 4;
+  SecurityLevel minimum_level = 5;
+  
+  // Actions
+  repeated AccessAction allowed_actions = 6;
+  repeated string allowed_resources = 7;
+  
+  // Constraints
+  repeated string time_constraints = 8;
+  repeated string ip_constraints = 9;
+}
+
+// Rate limit configuration
+message RateLimitConfig {
+  // General limits
+  int32 requests_per_minute = 1;
+  int32 requests_per_hour = 2;
+  int32 requests_per_day = 3;
+  
+  // Per-user limits
+  int32 user_requests_per_minute = 4;
+  int32 user_requests_per_hour = 5;
+  int32 user_requests_per_day = 6;
+  
+  // Per-IP limits
+  int32 ip_requests_per_minute = 7;
+  int32 ip_requests_per_hour = 8;
+  int32 ip_requests_per_day = 9;
+}

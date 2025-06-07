@@ -22,6 +22,31 @@ python_binary(
     visibility = ["PUBLIC"],
 )
 
+# Security-related tools
+python_binary(
+    name = "security_validator.py",
+    main = "security_validator.py",
+    visibility = ["PUBLIC"],
+)
+
+python_binary(
+    name = "proto_sanitizer.py",
+    main = "proto_sanitizer.py",
+    visibility = ["PUBLIC"],
+)
+
+python_binary(
+    name = "code_security_validator.py",
+    main = "code_security_validator.py",
+    visibility = ["PUBLIC"],
+)
+
+python_binary(
+    name = "audit_logger.py",
+    main = "audit_logger.py",
+    visibility = ["PUBLIC"],
+)
+
 # Convenience target for all tool management scripts
 filegroup(
     name = "tool_scripts",
