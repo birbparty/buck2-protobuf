@@ -1,4 +1,4 @@
-# Test infrastructure for protobuf Buck2 integration
+# Comprehensive test infrastructure for protobuf Buck2 integration
 
 load("//rules:proto.bzl", "proto_library")
 
@@ -9,39 +9,151 @@ python_library(
     visibility = ["PUBLIC"],
 )
 
-# Test suites
-alias(
-    name = "unit_tests",
-    actual = "//test/rules:proto_utils_test",
+# Core test libraries
+python_library(
+    name = "coverage_runner",
+    srcs = ["coverage/coverage_runner.py"],
+    deps = [":test_utils"],
     visibility = ["PUBLIC"],
 )
 
-# Integration test script
+python_library(
+    name = "performance_benchmarks",
+    srcs = ["performance/benchmark_suite.py"],
+    deps = [":test_utils"],
+    visibility = ["PUBLIC"],
+)
+
+# Unit test suites
+python_test(
+    name = "unit_tests",
+    srcs = ["rules/proto_utils_test.py"],
+    deps = [":test_utils"],
+    visibility = ["PUBLIC"],
+)
+
+python_test(
+    name = "comprehensive_unit_tests",
+    srcs = ["rules/private_implementations_test.py"],
+    deps = [":test_utils"],
+    visibility = ["PUBLIC"],
+)
+
+# Integration test scripts
 sh_binary(
     name = "integration_tests",
     main = "integration/test_workflows.sh",
     visibility = ["PUBLIC"],
 )
 
-# Run all tests
-alias(
-    name = "all_tests",
-    actual = [
-        ":unit_tests",
-        "//test/rules:basic_proto_test",
-        "//test/rules:types_proto_test",
-        "//test/rules:dependency_test",
-        "//test/rules:validation_test",
-        "//test/rules:large_proto_performance_test",
-    ],
+sh_binary(
+    name = "cross_language_tests",
+    main = "integration/test_cross_language_compatibility.sh",
     visibility = ["PUBLIC"],
 )
 
 # Performance test suite
-alias(
+python_binary(
     name = "performance_tests",
+    main = "performance/benchmark_suite.py",
+    deps = [":performance_benchmarks"],
+    visibility = ["PUBLIC"],
+)
+
+# Coverage test runner
+python_binary(
+    name = "coverage_tests",
+    main = "coverage/coverage_runner.py",
+    deps = [":coverage_runner"],
+    visibility = ["PUBLIC"],
+)
+
+# Comprehensive test master runner
+python_binary(
+    name = "comprehensive_test_runner",
+    main = "run_comprehensive_tests.py",
+    deps = [
+        ":test_utils",
+        ":coverage_runner",
+        ":performance_benchmarks",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Test category aliases
+alias(
+    name = "unit_test_suite",
     actual = [
-        "//test/rules:large_proto_performance_test",
+        ":unit_tests",
+        ":comprehensive_unit_tests",
+        "//test/rules:go_proto_test",
+        "//test/rules:python_proto_test",
+        "//test/rules:typescript_proto_test",
+        "//test/rules:cpp_proto_test",
+        "//test/rules:rust_proto_test",
+        "//test/rules:bundle_test",
+        "//test/rules:grpc_service_test",
+        ":cache_test",
+        ":security_test", 
+        ":validation_test",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+alias(
+    name = "integration_test_suite",
+    actual = [
+        ":integration_tests",
+        ":cross_language_tests",
+        "//test/integration:test_go_compilation",
+        "//test/integration:test_python_compilation",
+        "//test/integration:test_typescript_compilation",
+        "//test/integration:test_cpp_compilation",
+        "//test/integration:test_rust_compilation",
+        "//test/integration:test_multi_language",
+        "//test/integration:test_validation",
+        "//test/integration:test_cache_performance",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+alias(
+    name = "performance_test_suite",
+    actual = [
+        ":performance_tests",
+        "//test/integration:test_cache_performance",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Complete test suite
+alias(
+    name = "all_tests",
+    actual = [
+        ":unit_test_suite",
+        ":integration_test_suite",
+        ":performance_test_suite",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Quick test suite for development
+alias(
+    name = "quick_tests",
+    actual = [
+        ":unit_tests",
+        ":comprehensive_unit_tests",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# CI test suite (comprehensive but time-bounded)
+alias(
+    name = "ci_tests",
+    actual = [
+        ":unit_test_suite",
+        ":integration_tests",
+        ":cross_language_tests",
     ],
     visibility = ["PUBLIC"],
 )
