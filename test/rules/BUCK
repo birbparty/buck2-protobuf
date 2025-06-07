@@ -104,3 +104,11 @@ python_proto_test_suite(
     name = "python_proto_tests",
     visibility = ["//test:__subpackages__"],
 )
+
+# TypeScript protobuf generation tests
+load("//test/rules:typescript_proto_test.bzl", "typescript_proto_test_suite")
+
+typescript_proto_test_suite(
+    name = "typescript_proto_tests",
+    visibility = ["//test:__subpackages__"],
+)

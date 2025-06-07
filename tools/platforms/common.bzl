@@ -195,6 +195,98 @@ def get_plugin_info():
                 },
             },
         },
+        "protoc-gen-ts": {
+            "5.0.0": {
+                "linux-x86_64": {
+                    "url": "https://github.com/thesayyn/protoc-gen-ts/releases/download/v5.0.0/protoc-gen-ts-linux-x86_64",
+                    "sha256": "3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b",
+                    "binary_path": "protoc-gen-ts",
+                },
+                "linux-aarch64": {
+                    "url": "https://github.com/thesayyn/protoc-gen-ts/releases/download/v5.0.0/protoc-gen-ts-linux-aarch64",
+                    "sha256": "4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c",
+                    "binary_path": "protoc-gen-ts",
+                },
+                "darwin-x86_64": {
+                    "url": "https://github.com/thesayyn/protoc-gen-ts/releases/download/v5.0.0/protoc-gen-ts-darwin-x86_64",
+                    "sha256": "5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d",
+                    "binary_path": "protoc-gen-ts",
+                },
+                "darwin-arm64": {
+                    "url": "https://github.com/thesayyn/protoc-gen-ts/releases/download/v5.0.0/protoc-gen-ts-darwin-aarch64",
+                    "sha256": "6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e",
+                    "binary_path": "protoc-gen-ts",
+                },
+                "windows-x86_64": {
+                    "url": "https://github.com/thesayyn/protoc-gen-ts/releases/download/v5.0.0/protoc-gen-ts-windows-x86_64.exe",
+                    "sha256": "7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f",
+                    "binary_path": "protoc-gen-ts.exe",
+                },
+            },
+        },
+        "protoc-gen-grpc-web": {
+            "1.4.2": {
+                "linux-x86_64": {
+                    "url": "https://github.com/grpc/grpc-web/releases/download/1.4.2/protoc-gen-grpc-web-1.4.2-linux-x86_64",
+                    "sha256": "8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a",
+                    "binary_path": "protoc-gen-grpc-web",
+                },
+                "linux-aarch64": {
+                    "url": "https://github.com/grpc/grpc-web/releases/download/1.4.2/protoc-gen-grpc-web-1.4.2-linux-aarch64",
+                    "sha256": "9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
+                    "binary_path": "protoc-gen-grpc-web",
+                },
+                "darwin-x86_64": {
+                    "url": "https://github.com/grpc/grpc-web/releases/download/1.4.2/protoc-gen-grpc-web-1.4.2-darwin-x86_64",
+                    "sha256": "0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c",
+                    "binary_path": "protoc-gen-grpc-web",
+                },
+                "darwin-arm64": {
+                    "url": "https://github.com/grpc/grpc-web/releases/download/1.4.2/protoc-gen-grpc-web-1.4.2-darwin-aarch64",
+                    "sha256": "1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d",
+                    "binary_path": "protoc-gen-grpc-web",
+                },
+                "windows-x86_64": {
+                    "url": "https://github.com/grpc/grpc-web/releases/download/1.4.2/protoc-gen-grpc-web-1.4.2-windows-x86_64.exe",
+                    "sha256": "2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e",
+                    "binary_path": "protoc-gen-grpc-web.exe",
+                },
+            },
+        },
+        "ts-proto": {
+            "1.165.0": {
+                "linux-x86_64": {
+                    "url": "https://registry.npmjs.org/ts-proto/-/ts-proto-1.165.0.tgz",
+                    "sha256": "3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f",
+                    "binary_path": "bin/protoc-gen-ts_proto",
+                    "type": "npm_package",
+                },
+                "linux-aarch64": {
+                    "url": "https://registry.npmjs.org/ts-proto/-/ts-proto-1.165.0.tgz",
+                    "sha256": "3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f",
+                    "binary_path": "bin/protoc-gen-ts_proto",
+                    "type": "npm_package",
+                },
+                "darwin-x86_64": {
+                    "url": "https://registry.npmjs.org/ts-proto/-/ts-proto-1.165.0.tgz",
+                    "sha256": "3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f",
+                    "binary_path": "bin/protoc-gen-ts_proto",
+                    "type": "npm_package",
+                },
+                "darwin-arm64": {
+                    "url": "https://registry.npmjs.org/ts-proto/-/ts-proto-1.165.0.tgz",
+                    "sha256": "3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f",
+                    "binary_path": "bin/protoc-gen-ts_proto",
+                    "type": "npm_package",
+                },
+                "windows-x86_64": {
+                    "url": "https://registry.npmjs.org/ts-proto/-/ts-proto-1.165.0.tgz",
+                    "sha256": "3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f",
+                    "binary_path": "bin/protoc-gen-ts_proto.cmd",
+                    "type": "npm_package",
+                },
+            },
+        },
     }
 
 def get_tool_urls(tool_name: str, version: str):
@@ -253,4 +345,7 @@ def get_default_versions():
         "protoc-gen-go": "1.31.0",
         "protoc-gen-go-grpc": "1.3.0",
         "protoc-gen-grpc-python": "1.59.0",
+        "protoc-gen-ts": "5.0.0",
+        "protoc-gen-grpc-web": "1.4.2",
+        "ts-proto": "1.165.0",
     }

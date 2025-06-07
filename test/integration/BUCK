@@ -1,2 +1,29 @@
 # Integration tests BUCK file
-# Will be expanded in Task 014
+
+# Shell script integration tests
+sh_test(
+    name = "test_workflows",
+    srcs = ["test_workflows.sh"],
+    visibility = ["//test:__subpackages__"],
+)
+
+# Go protobuf compilation tests
+sh_test(
+    name = "test_go_compilation",
+    srcs = ["test_go_compilation.sh"],
+    visibility = ["//test:__subpackages__"],
+)
+
+# Python protobuf compilation tests
+sh_test(
+    name = "test_python_compilation",
+    srcs = ["test_python_compilation.sh"],
+    visibility = ["//test:__subpackages__"],
+)
+
+# TypeScript protobuf compilation tests
+sh_test(
+    name = "test_typescript_compilation",
+    srcs = ["test_typescript_compilation.sh"],
+    visibility = ["//test:__subpackages__"],
+)

@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package examples.typescript;
+
+option ts_package = "@examples/user-types";
+
+// User information message
+message User {
+  // Unique user identifier
+  int64 id = 1;
+  
+  // User's display name
+  string name = 2;
+  
+  // User's email address
+  string email = 3;
+  
+  // User's age in years
+  int32 age = 4;
+  
+  // Whether the user is active
+  bool is_active = 5;
+  
+  // User's profile settings
+  UserProfile profile = 6;
+  
+  // List of user's roles
+  repeated string roles = 7;
+  
+  // User creation timestamp
+  int64 created_at = 8;
+}
+
+// User profile information
+message UserProfile {
+  // Profile display name
+  string display_name = 1;
+  
+  // Profile bio/description
+  string bio = 2;
+  
+  // Profile avatar URL
+  string avatar_url = 3;
+  
+  // User preferences
+  UserPreferences preferences = 4;
+}
+
+// User preferences configuration
+message UserPreferences {
+  // Email notification settings
+  bool email_notifications = 1;
+  
+  // Push notification settings  
+  bool push_notifications = 2;
+  
+  // Privacy level
+  PrivacyLevel privacy_level = 3;
+  
+  // Preferred language code
+  string language = 4;
+  
+  // Preferred timezone
+  string timezone = 5;
+}
+
+// Privacy level enumeration
+enum PrivacyLevel {
+  PRIVACY_LEVEL_UNSPECIFIED = 0;
+  PRIVACY_LEVEL_PUBLIC = 1;
+  PRIVACY_LEVEL_FRIENDS = 2;
+  PRIVACY_LEVEL_PRIVATE = 3;
+}

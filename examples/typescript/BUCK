@@ -1,0 +1,86 @@
+load("//rules:proto.bzl", "proto_library")
+load("//rules:typescript.bzl", "typescript_proto_library", "typescript_proto_messages", "typescript_grpc_web_library")
+
+# Basic user protobuf definitions
+proto_library(
+    name = "user_proto",
+    srcs = ["user.proto"],
+    visibility = ["PUBLIC"],
+)
+
+# User service protobuf definitions with dependencies
+proto_library(
+    name = "user_service_proto", 
+    srcs = ["user_service.proto"],
+    deps = [":user_proto"],
+    visibility = ["PUBLIC"],
+)
+
+# TypeScript protobuf messages (basic types only)
+typescript_proto_messages(
+    name = "user_ts_types",
+    proto = ":user_proto",
+    npm_package = "@examples/user-types",
+    visibility = ["PUBLIC"],
+)
+
+# TypeScript gRPC-Web service client
+typescript_grpc_web_library(
+    name = "user_service_ts_client",
+    proto = ":user_service_proto",
+    npm_package = "@examples/user-service-client",
+    visibility = ["PUBLIC"],
+)
+
+# Full TypeScript library with both messages and gRPC-Web
+typescript_proto_library(
+    name = "user_complete_ts",
+    proto = ":user_service_proto",
+    npm_package = "@examples/user-complete",
+    plugins = ["ts", "grpc-web"],
+    use_grpc_web = True,
+    module_type = "esm",
+    typescript_version = "5.0",
+    visibility = ["PUBLIC"],
+)
+
+# TypeScript library using ts-proto generator
+typescript_proto_library(
+    name = "user_ts_proto",
+    proto = ":user_proto", 
+    npm_package = "@examples/user-ts-proto",
+    plugins = ["ts-proto"],
+    module_type = "both",
+    generate_dts = True,
+    options = {
+        "ts_proto_nestJs": "true",
+        "ts_proto_addGrpcMetadata": "true",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# CommonJS module for Node.js environments
+typescript_proto_library(
+    name = "user_node_ts",
+    proto = ":user_proto",
+    npm_package = "@examples/user-node",
+    plugins = ["ts"],
+    module_type = "commonjs",
+    typescript_version = "5.0",
+    visibility = ["PUBLIC"],
+)
+
+# Browser-optimized bundle with tree-shaking
+typescript_proto_library(
+    name = "user_browser_ts",
+    proto = ":user_proto",
+    npm_package = "@examples/user-browser",
+    plugins = ["ts"],
+    module_type = "esm",
+    typescript_version = "5.0",
+    options = {
+        "ts_optimize_for_size": "true",
+        "ts_generate_es_modules": "true",
+    },
+    visibility = ["PUBLIC"],
+)

@@ -1,0 +1,165 @@
+syntax = "proto3";
+
+package examples.typescript;
+
+import "examples/typescript/user.proto";
+
+option ts_package = "@examples/user-service";
+
+// User management service for gRPC-Web browser clients
+service UserService {
+  // Get a user by ID
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  
+  // Create a new user
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  
+  // Update an existing user
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  
+  // Delete a user by ID
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  
+  // List users with pagination
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  
+  // Stream user updates (server-side streaming)
+  rpc StreamUserUpdates(StreamUserUpdatesRequest) returns (stream UserUpdateEvent);
+}
+
+// Get user request
+message GetUserRequest {
+  // User ID to retrieve
+  int64 user_id = 1;
+}
+
+// Get user response
+message GetUserResponse {
+  // Retrieved user, if found
+  User user = 1;
+  
+  // Whether the user was found
+  bool found = 2;
+}
+
+// Create user request
+message CreateUserRequest {
+  // User data to create
+  User user = 1;
+}
+
+// Create user response
+message CreateUserResponse {
+  // Created user with assigned ID
+  User user = 1;
+  
+  // Whether creation was successful
+  bool success = 2;
+  
+  // Error message if creation failed
+  string error_message = 3;
+}
+
+// Update user request
+message UpdateUserRequest {
+  // User ID to update
+  int64 user_id = 1;
+  
+  // Updated user data
+  User user = 2;
+  
+  // Field mask for partial updates
+  repeated string update_mask = 3;
+}
+
+// Update user response
+message UpdateUserResponse {
+  // Updated user
+  User user = 1;
+  
+  // Whether update was successful
+  bool success = 2;
+  
+  // Error message if update failed
+  string error_message = 3;
+}
+
+// Delete user request
+message DeleteUserRequest {
+  // User ID to delete
+  int64 user_id = 1;
+}
+
+// Delete user response
+message DeleteUserResponse {
+  // Whether deletion was successful
+  bool success = 1;
+  
+  // Error message if deletion failed
+  string error_message = 2;
+}
+
+// List users request
+message ListUsersRequest {
+  // Maximum number of users to return
+  int32 page_size = 1;
+  
+  // Pagination token from previous request
+  string page_token = 2;
+  
+  // Optional filter for active users only
+  bool active_only = 3;
+  
+  // Optional search query
+  string search_query = 4;
+}
+
+// List users response
+message ListUsersResponse {
+  // List of users
+  repeated User users = 1;
+  
+  // Token for next page of results
+  string next_page_token = 2;
+  
+  // Total number of users (if known)
+  int32 total_count = 3;
+}
+
+// Stream user updates request
+message StreamUserUpdatesRequest {
+  // Optional filter for specific user IDs
+  repeated int64 user_ids = 1;
+  
+  // Whether to include create events
+  bool include_creates = 2;
+  
+  // Whether to include update events
+  bool include_updates = 3;
+  
+  // Whether to include delete events
+  bool include_deletes = 4;
+}
+
+// User update event
+message UserUpdateEvent {
+  // Type of event
+  EventType event_type = 1;
+  
+  // User data (for create/update events)
+  User user = 2;
+  
+  // User ID (for delete events)
+  int64 user_id = 3;
+  
+  // Event timestamp
+  int64 timestamp = 4;
+}
+
+// Event type enumeration
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  EVENT_TYPE_CREATED = 1;
+  EVENT_TYPE_UPDATED = 2;
+  EVENT_TYPE_DELETED = 3;
+}

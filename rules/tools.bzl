@@ -373,7 +373,9 @@ def get_tool_requirements(language: str):
             # Will be added in future tasks
         },
         "typescript": {
-            # Will be added in future tasks
+            "protoc-gen-ts": "",
+            "protoc-gen-grpc-web": "",
+            "ts-proto": "",
         },
         "rust": {
             # Will be added in future tasks
