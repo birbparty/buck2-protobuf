@@ -1,6 +1,7 @@
 # Unit tests for Buck2 protobuf rules
 
 load("//test/rules:proto_test.bzl", "proto_library_test", "proto_performance_test")
+load("//test/rules:python_proto_test.bzl", "python_proto_test_suite")
 load("//rules:proto.bzl", "proto_library")
 
 # Test basic proto_library functionality
@@ -95,5 +96,11 @@ python_test(
     deps = [
         "//test:test_utils",
     ],
+    visibility = ["//test:__subpackages__"],
+)
+
+# Python protobuf generation tests
+python_proto_test_suite(
+    name = "python_proto_tests",
     visibility = ["//test:__subpackages__"],
 )

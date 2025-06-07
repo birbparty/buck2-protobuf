@@ -1,2 +1,7 @@
 # Examples directory BUCK file
-# Will be expanded in future tasks
+# Contains various protobuf language examples
+
+# Load subdirectory build files
+load("//examples/basic:BUCK")
+load("//examples/go:BUCK") 
+load("//examples/python:BUCK")
