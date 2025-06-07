@@ -1,0 +1,4 @@
+# Basic protobuf example for Buck2 integration
+# Minimal BUCK file for project structure validation
+
+# Will be expanded in Task 002 with proto_library usage

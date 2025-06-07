@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package test.complex;
+
+import "test/fixtures/simple.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/org/protobuf-buck2/test/complex";
+
+// Complex message for testing advanced protobuf features
+message ComplexMessage {
+  int32 id = 1;
+  string name = 2;
+  repeated test.simple.SimpleMessage items = 3;
+  map<string, int32> metadata = 4;
+  google.protobuf.Timestamp created_at = 5;
+  
+  oneof content {
+    string text = 6;
+    bytes data = 7;
+  }
+  
+  // Nested message
+  message NestedMessage {
+    string value = 1;
+    test.simple.Status status = 2;
+  }
+  
+  repeated NestedMessage nested = 8;
+}
+
+// Test message with validation constraints (for future validation testing)
+message ValidatedMessage {
+  // Required field
+  string required_field = 1;
+  
+  // Field with size constraints
+  string bounded_string = 2; // max_length: 100
+  
+  // Numeric constraints
+  int32 positive_number = 3; // min: 1
+}

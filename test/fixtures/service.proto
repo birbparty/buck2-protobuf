@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package test.service;
+
+import "test/fixtures/simple.proto";
+import "test/fixtures/complex.proto";
+
+option go_package = "github.com/org/protobuf-buck2/test/service";
+
+// Test service for gRPC functionality testing
+service TestService {
+  // Unary RPC
+  rpc GetSimple(GetSimpleRequest) returns (test.simple.SimpleMessage);
+  
+  // Server streaming RPC
+  rpc ListComplex(ListComplexRequest) returns (stream test.complex.ComplexMessage);
+  
+  // Client streaming RPC
+  rpc CreateMultiple(stream test.simple.SimpleMessage) returns (CreateMultipleResponse);
+  
+  // Bidirectional streaming RPC
+  rpc ProcessStream(stream test.complex.ComplexMessage) returns (stream test.simple.SimpleMessage);
+}
+
+message GetSimpleRequest {
+  int32 id = 1;
+}
+
+message ListComplexRequest {
+  int32 limit = 1;
+  string filter = 2;
+}
+
+message CreateMultipleResponse {
+  int32 created_count = 1;
+  repeated int32 ids = 2;
+}
+
+// Health check service for testing
+service HealthService {
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message HealthCheckRequest {
+  string service = 1;
+}
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+    SERVICE_UNKNOWN = 3;
+  }
+  
+  ServingStatus status = 1;
+}

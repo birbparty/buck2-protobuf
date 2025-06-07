@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package test.simple;
+
+option go_package = "github.com/org/protobuf-buck2/test/simple";
+
+// Simple message for testing basic protobuf functionality
+message SimpleMessage {
+  int32 id = 1;
+  string name = 2;
+  bool active = 3;
+}
+
+// Simple enum for testing
+enum Status {
+  STATUS_UNKNOWN = 0;
+  STATUS_ACTIVE = 1;
+  STATUS_INACTIVE = 2;
+}

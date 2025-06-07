@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package example.basic;
+
+option go_package = "github.com/org/protobuf-buck2/examples/basic";
+
+// Example message demonstrating basic protobuf usage
+message ExampleMessage {
+  int32 id = 1;
+  string name = 2;
+  bool enabled = 3;
+  repeated string tags = 4;
+}
+
+// Example enum
+enum Priority {
+  PRIORITY_UNKNOWN = 0;
+  PRIORITY_LOW = 1;
+  PRIORITY_MEDIUM = 2;
+  PRIORITY_HIGH = 3;
+}
+
+// Example showing different field types
+message TypesExample {
+  // Scalar types
+  int32 int_field = 1;
+  int64 long_field = 2;
+  float float_field = 3;
+  double double_field = 4;
+  bool bool_field = 5;
+  string string_field = 6;
+  bytes bytes_field = 7;
+  
+  // Repeated and map fields
+  repeated string repeated_field = 8;
+  map<string, int32> map_field = 9;
+  
+  // Enum field
+  Priority priority = 10;
+  
+  // Nested message
+  ExampleMessage nested = 11;
+}

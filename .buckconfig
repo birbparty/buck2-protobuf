@@ -1,0 +1,26 @@
+[cells]
+root = .
+
+[parser]
+target_platform_detector_spec = target:root//...->root//platforms:default
+
+[protobuf]
+default_protoc_version = "24.4"
+enable_remote_cache = true
+tool_cache_dir = "tools/cache"
+
+[build]
+execution_platforms = root//platforms:default
+
+[buck2]
+file_watcher = notify
+digest_algorithms = SHA1
+
+[project]
+ignore = .git
+
+[ui]
+build_id_writer = @mode/dev
+
+[cache]
+mode = readwrite

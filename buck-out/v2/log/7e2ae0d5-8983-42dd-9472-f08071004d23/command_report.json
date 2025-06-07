@@ -1,0 +1,10 @@
+{
+  "trace_id": "7e2ae0d5-8983-42dd-9472-f08071004d23",
+  "exit_code": 3,
+  "error_messages": [
+    "Error evaluating build file: `root//examples/basic:BUCK`\n\nCaused by:\n    error: Variable `filegroup` not found\n     --> examples/basic/BUCK:5:1\n      |\n    5 | filegroup(\n      | ^^^^^^^^^\n      |\n    "
+  ],
+  "finalizing_error_messages": [
+    "'invocation recorder' failed to finalize\n\nCaused by:\n    Scribe sink not enabled (internal error)"
+  ]
+}

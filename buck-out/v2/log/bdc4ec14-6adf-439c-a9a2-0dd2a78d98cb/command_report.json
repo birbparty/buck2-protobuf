@@ -1,0 +1,10 @@
+{
+  "trace_id": "bdc4ec14-6adf-439c-a9a2-0dd2a78d98cb",
+  "exit_code": 3,
+  "error_messages": [
+    "From load at implicit location\n\nCaused by:\n    File not found: prelude//prelude.bzl"
+  ],
+  "finalizing_error_messages": [
+    "'invocation recorder' failed to finalize\n\nCaused by:\n    Scribe sink not enabled (internal error)"
+  ]
+}

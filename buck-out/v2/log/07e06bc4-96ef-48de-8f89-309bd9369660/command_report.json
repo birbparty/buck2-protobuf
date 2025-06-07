@@ -1,0 +1,10 @@
+{
+  "trace_id": "07e06bc4-96ef-48de-8f89-309bd9369660",
+  "exit_code": 3,
+  "error_messages": [
+    "Error evaluating build file: `root//platforms:BUCK`\n\nCaused by:\n    error: Variable `platform` not found\n     --> platforms/BUCK:4:1\n      |\n    4 | platform(\n      | ^^^^^^^^\n      |\n    "
+  ],
+  "finalizing_error_messages": [
+    "'invocation recorder' failed to finalize\n\nCaused by:\n    Scribe sink not enabled (internal error)"
+  ]
+}

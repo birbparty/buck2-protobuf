@@ -1,0 +1,62 @@
+{
+  "test_configurations": {
+    "protoc_versions": [
+      "24.4",
+      "24.3",
+      "24.2"
+    ],
+    "platforms": [
+      "linux-x86_64",
+      "linux-aarch64", 
+      "darwin-x86_64",
+      "darwin-aarch64",
+      "windows-x86_64"
+    ],
+    "languages": [
+      "go",
+      "python",
+      "typescript",
+      "cpp",
+      "rust"
+    ]
+  },
+  "expected_outputs": {
+    "go": {
+      "extensions": [".pb.go", "_grpc.pb.go"],
+      "package_pattern": "^package [a-zA-Z0-9_]+$"
+    },
+    "python": {
+      "extensions": ["_pb2.py", "_pb2_grpc.py", "_pb2.pyi"],
+      "import_pattern": "^from .* import .*_pb2$"
+    },
+    "typescript": {
+      "extensions": [".ts", ".d.ts"],
+      "export_pattern": "^export .* from"
+    },
+    "cpp": {
+      "extensions": [".pb.h", ".pb.cc", ".grpc.pb.h", ".grpc.pb.cc"],
+      "namespace_pattern": "^namespace [a-zA-Z0-9_]+"
+    },
+    "rust": {
+      "extensions": [".rs"],
+      "mod_pattern": "^pub mod [a-zA-Z0-9_]+"
+    }
+  },
+  "test_schemas": {
+    "simple": {
+      "file": "simple.proto",
+      "messages": ["SimpleMessage"],
+      "enums": ["Status"]
+    },
+    "complex": {
+      "file": "complex.proto", 
+      "messages": ["ComplexMessage", "ValidatedMessage"],
+      "dependencies": ["simple.proto"]
+    },
+    "service": {
+      "file": "service.proto",
+      "services": ["TestService", "HealthService"],
+      "dependencies": ["simple.proto", "complex.proto"]
+    }
+  }
+}
