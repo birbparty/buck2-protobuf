@@ -1,0 +1,174 @@
+syntax = "proto3";
+
+package examples.bundles;
+
+import "examples/bundles/user.proto";
+import "google/api/annotations.proto";
+import "validate/validate.proto";
+
+option go_package = "github.com/example/bundles/user/v1";
+option java_package = "com.example.bundles.user.v1";
+
+// UserService provides operations for managing users
+service UserService {
+  // Create a new user
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse) {
+    option (google.api.http) = {
+      post: "/v1/users"
+      body: "*"
+    };
+  }
+  
+  // Get a user by ID
+  rpc GetUser(GetUserRequest) returns (GetUserResponse) {
+    option (google.api.http) = {
+      get: "/v1/users/{id}"
+    };
+  }
+  
+  // Update an existing user
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse) {
+    option (google.api.http) = {
+      put: "/v1/users/{id}"
+      body: "*"
+    };
+  }
+  
+  // List users with pagination
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse) {
+    option (google.api.http) = {
+      get: "/v1/users"
+    };
+  }
+  
+  // Delete a user by ID
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse) {
+    option (google.api.http) = {
+      delete: "/v1/users/{id}"
+    };
+  }
+  
+  // Stream user updates (Server-side streaming)
+  rpc WatchUsers(WatchUsersRequest) returns (stream UserUpdateEvent) {
+    option (google.api.http) = {
+      get: "/v1/users:watch"
+    };
+  }
+}
+
+// Enhanced CreateUserRequest with validation
+message ValidatedCreateUserRequest {
+  string email = 1 [(validate.rules).string.email = true];
+  string name = 2 [(validate.rules).string.min_len = 1, (validate.rules).string.max_len = 100];
+  UserPreferences preferences = 3;
+}
+
+// Request to delete a user
+message DeleteUserRequest {
+  int64 id = 1 [(validate.rules).int64.gt = 0];
+}
+
+// Response from deleting a user
+message DeleteUserResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Request to watch user updates
+message WatchUsersRequest {
+  // Optional filter by user status
+  UserStatus status_filter = 1;
+  
+  // Include existing users in initial response
+  bool include_existing = 2;
+}
+
+// User update event for streaming
+message UserUpdateEvent {
+  // Type of update
+  UpdateType type = 1;
+  
+  // Updated user data
+  User user = 2;
+  
+  // Timestamp of the update
+  int64 timestamp = 3;
+}
+
+// Type of user update
+enum UpdateType {
+  UPDATE_TYPE_UNSPECIFIED = 0;
+  UPDATE_TYPE_CREATED = 1;
+  UPDATE_TYPE_UPDATED = 2;
+  UPDATE_TYPE_DELETED = 3;
+  UPDATE_TYPE_STATUS_CHANGED = 4;
+}
+
+// Batch operations for efficiency
+message BatchCreateUsersRequest {
+  repeated CreateUserRequest users = 1 [(validate.rules).repeated.min_items = 1, (validate.rules).repeated.max_items = 100];
+}
+
+message BatchCreateUsersResponse {
+  repeated User users = 1;
+  repeated string errors = 2;
+}
+
+// Health check service for monitoring
+service HealthService {
+  // Check service health
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse) {
+    option (google.api.http) = {
+      get: "/health"
+    };
+  }
+  
+  // Watch service health status
+  rpc Watch(HealthCheckRequest) returns (stream HealthCheckResponse);
+}
+
+message HealthCheckRequest {
+  string service = 1;
+}
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+    SERVICE_UNKNOWN = 3;
+  }
+  ServingStatus status = 1;
+}
+
+// Metrics service for observability
+service MetricsService {
+  // Get user metrics
+  rpc GetUserMetrics(GetUserMetricsRequest) returns (GetUserMetricsResponse) {
+    option (google.api.http) = {
+      get: "/v1/metrics/users"
+    };
+  }
+}
+
+message GetUserMetricsRequest {
+  // Time range for metrics
+  int64 start_time = 1;
+  int64 end_time = 2;
+  
+  // Granularity of metrics (hourly, daily, etc.)
+  string granularity = 3;
+}
+
+message GetUserMetricsResponse {
+  int64 total_users = 1;
+  int64 active_users = 2;
+  int64 new_users = 3;
+  repeated UserMetricPoint metric_points = 4;
+}
+
+message UserMetricPoint {
+  int64 timestamp = 1;
+  int64 user_count = 2;
+  int64 active_count = 3;
+}

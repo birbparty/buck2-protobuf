@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package examples.bundles;
+
+option go_package = "github.com/example/bundles/user/v1";
+option java_package = "com.example.bundles.user.v1";
+
+// User message for multi-language bundle demonstration
+message User {
+  // Unique identifier for the user
+  int64 id = 1;
+  
+  // User's email address
+  string email = 2;
+  
+  // User's display name
+  string name = 3;
+  
+  // User's current status
+  UserStatus status = 4;
+  
+  // Account creation timestamp
+  int64 created_at = 5;
+  
+  // Account last update timestamp
+  int64 updated_at = 6;
+  
+  // User preferences
+  UserPreferences preferences = 7;
+}
+
+// User status enumeration
+enum UserStatus {
+  USER_STATUS_UNSPECIFIED = 0;
+  USER_STATUS_ACTIVE = 1;
+  USER_STATUS_INACTIVE = 2;
+  USER_STATUS_SUSPENDED = 3;
+}
+
+// User preferences message
+message UserPreferences {
+  // Email notification preferences
+  bool email_notifications = 1;
+  
+  // SMS notification preferences
+  bool sms_notifications = 2;
+  
+  // Preferred language code (ISO 639-1)
+  string language = 3;
+  
+  // Preferred timezone (IANA time zone)
+  string timezone = 4;
+}
+
+// Request to create a new user
+message CreateUserRequest {
+  string email = 1;
+  string name = 2;
+  UserPreferences preferences = 3;
+}
+
+// Response from creating a user
+message CreateUserResponse {
+  User user = 1;
+}
+
+// Request to get a user by ID
+message GetUserRequest {
+  int64 id = 1;
+}
+
+// Response from getting a user
+message GetUserResponse {
+  User user = 1;
+}
+
+// Request to update a user
+message UpdateUserRequest {
+  int64 id = 1;
+  string email = 2;
+  string name = 3;
+  UserPreferences preferences = 4;
+}
+
+// Response from updating a user
+message UpdateUserResponse {
+  User user = 1;
+}
+
+// Request to list users
+message ListUsersRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  UserStatus status_filter = 3;
+}
+
+// Response from listing users
+message ListUsersResponse {
+  repeated User users = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}

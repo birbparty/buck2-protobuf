@@ -1,0 +1,56 @@
+load("//rules:proto.bzl", "proto_library")
+
+# Basic proto library for user messages
+proto_library(
+    name = "user_proto",
+    srcs = ["user.proto"],
+    options = {
+        "go_package": "github.com/example/bundles/user/v1",
+        "python_package": "example.bundles.user.v1",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# Service proto library that depends on user messages
+proto_library(
+    name = "user_service_proto",
+    srcs = ["user_service.proto"],
+    deps = [":user_proto"],
+    options = {
+        "go_package": "github.com/example/bundles/user/v1",
+        "python_package": "example.bundles.user.v1",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# NOTE: Multi-language bundle examples are commented out until tests are created
+# These demonstrate the new proto_bundle and grpc_service rules:
+
+# Example 1: Multi-language bundle for user messages
+# proto_bundle(
+#     name = "user_bundle",
+#     proto = ":user_proto",
+#     languages = {
+#         "go": {"go_package": "github.com/example/bundles/user/v1"},
+#         "python": {"python_package": "example.bundles.user.v1"},
+#         "typescript": {"npm_package": "@example/bundles-user"},
+#         "cpp": {"namespace": "example::bundles::user::v1"},
+#         "rust": {"rust_package": "example-bundles-user"},
+#     },
+#     consistency_checks = True,
+#     visibility = ["PUBLIC"],
+# )
+
+# Example 2: Full-featured gRPC service with advanced plugins
+# grpc_service(
+#     name = "user_service",
+#     proto = ":user_service_proto", 
+#     languages = ["go", "python", "typescript"],
+#     plugins = {
+#         "grpc-gateway": {"enabled": True},
+#         "openapi": {"output_format": "json"},
+#         "validate": {"emit_imported_vars": True},
+#         "mock": {"package": "usermocks"},
+#     },
+#     visibility = ["PUBLIC"],
+# )
