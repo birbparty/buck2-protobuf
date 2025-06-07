@@ -359,7 +359,9 @@ def get_tool_requirements(language: str):
             "protoc-gen-go-grpc": "",
         },
         "python": {
-            "protoc-gen-grpc-python": "",
+            # Python support is built into protoc for basic messages
+            # gRPC support is typically provided by grpcio-tools package
+            # For now, we'll rely on system-installed grpcio-tools
         },
         "cpp": {
             # C++ support is built into protoc

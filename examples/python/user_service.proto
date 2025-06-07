@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package examples.python;
+
+import "examples/python/user.proto";
+
+option python_package = "examples.python.service.v1";
+
+// User management service for Python gRPC example
+service UserService {
+  // Get a user by ID
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  
+  // Create a new user
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  
+  // Update an existing user
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  
+  // Delete a user
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  
+  // List users with pagination
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  
+  // Stream user updates
+  rpc StreamUserUpdates(StreamUserUpdatesRequest) returns (stream UserUpdateEvent);
+}
+
+// Update user request
+message UpdateUserRequest {
+  // User ID to update
+  int64 user_id = 1;
+  
+  // Updated user data
+  User user = 2;
+  
+  // Fields to update (if empty, update all)
+  repeated string update_mask = 3;
+}
+
+// Update user response
+message UpdateUserResponse {
+  // Updated user
+  User user = 1;
+  
+  // Update success status
+  bool success = 2;
+  
+  // Error message if update failed
+  string error_message = 3;
+}
+
+// Delete user request
+message DeleteUserRequest {
+  // User ID to delete
+  int64 user_id = 1;
+}
+
+// Delete user response
+message DeleteUserResponse {
+  // Deletion success status
+  bool success = 1;
+  
+  // Error message if deletion failed
+  string error_message = 2;
+}
+
+// List users request
+message ListUsersRequest {
+  // Page size for pagination
+  int32 page_size = 1;
+  
+  // Page token for pagination
+  string page_token = 2;
+  
+  // Filter by user role
+  UserRole role_filter = 3;
+  
+  // Search query for user names/emails
+  string search_query = 4;
+}
+
+// List users response
+message ListUsersResponse {
+  // List of users
+  repeated User users = 1;
+  
+  // Next page token (empty if no more pages)
+  string next_page_token = 2;
+  
+  // Total count of users (if available)
+  int64 total_count = 3;
+}
+
+// Stream user updates request
+message StreamUserUpdatesRequest {
+  // Filter by user IDs (empty for all users)
+  repeated int64 user_ids = 1;
+  
+  // Filter by event types
+  repeated UserUpdateEventType event_types = 2;
+}
+
+// User update event
+message UserUpdateEvent {
+  // Event type
+  UserUpdateEventType event_type = 1;
+  
+  // User data (current state)
+  User user = 2;
+  
+  // Event timestamp
+  int64 timestamp = 3;
+  
+  // Optional previous user state (for updates)
+  User previous_user = 4;
+}
+
+// User update event types
+enum UserUpdateEventType {
+  UNKNOWN_EVENT = 0;
+  USER_CREATED = 1;
+  USER_UPDATED = 2;
+  USER_DELETED = 3;
+  USER_LOGIN = 4;
+  USER_LOGOUT = 5;
+}

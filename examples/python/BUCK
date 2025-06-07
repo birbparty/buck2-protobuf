@@ -1,0 +1,80 @@
+"""Python protobuf examples for Buck2 protobuf integration."""
+
+load("//rules:proto.bzl", "proto_library")
+load("//rules:python.bzl", "python_proto_library", "python_proto_messages", "python_grpc_library")
+
+# Proto library definitions
+proto_library(
+    name = "user_proto",
+    srcs = ["user.proto"],
+    visibility = ["PUBLIC"],
+)
+
+proto_library(
+    name = "user_service_proto",
+    srcs = ["user_service.proto"],
+    deps = [":user_proto"],
+    visibility = ["PUBLIC"],
+)
+
+# Python protobuf generation examples
+
+# Basic Python protobuf messages (no gRPC)
+python_proto_messages(
+    name = "user_py_messages",
+    proto = ":user_proto",
+    python_package = "examples.python.user.v1",
+    visibility = ["PUBLIC"],
+)
+
+# Full Python protobuf library with gRPC support
+python_proto_library(
+    name = "user_py_proto",
+    proto = ":user_proto",
+    python_package = "examples.python.user.v1", 
+    plugins = ["python", "grpc-python"],
+    generate_stubs = True,
+    mypy_support = True,
+    visibility = ["PUBLIC"],
+)
+
+# Python gRPC service library
+python_grpc_library(
+    name = "user_service_py_grpc",
+    proto = ":user_service_proto",
+    python_package = "examples.python.service.v1",
+    visibility = ["PUBLIC"],
+)
+
+# Example with custom options
+python_proto_library(
+    name = "user_py_custom",
+    proto = ":user_proto",
+    python_package = "examples.python.custom.v1",
+    plugins = ["python", "grpc-python"],
+    generate_stubs = True,
+    mypy_support = True,
+    options = {
+        "python_package_prefix": "custom_",
+        "grpc_python_async": "true",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# Example without type stubs (for performance testing)
+python_proto_library(
+    name = "user_py_no_stubs",
+    proto = ":user_proto",
+    python_package = "examples.python.nostubs.v1",
+    plugins = ["python", "grpc-python"],
+    generate_stubs = False,
+    mypy_support = False,
+    visibility = ["PUBLIC"],
+)
+
+# Example with minimal configuration (auto-generated package path)
+python_proto_library(
+    name = "user_py_minimal",
+    proto = ":user_proto",
+    visibility = ["PUBLIC"],
+)
