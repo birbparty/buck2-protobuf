@@ -1,2 +1,41 @@
 # Tools directory BUCK file
-# Will be expanded in Task 003
+# Provides Python scripts for tool management
+
+# Python script for downloading protoc binaries
+python_binary(
+    name = "download_protoc.py",
+    main = "download_protoc.py",
+    visibility = ["PUBLIC"],
+)
+
+# Python script for downloading protoc plugins  
+python_binary(
+    name = "download_plugins.py",
+    main = "download_plugins.py", 
+    visibility = ["PUBLIC"],
+)
+
+# Python script for validating tools
+python_binary(
+    name = "validate_tools.py",
+    main = "validate_tools.py",
+    visibility = ["PUBLIC"],
+)
+
+# Convenience target for all tool management scripts
+filegroup(
+    name = "tool_scripts",
+    srcs = [
+        "download_protoc.py",
+        "download_plugins.py", 
+        "validate_tools.py",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Platform configuration files
+filegroup(
+    name = "platform_configs",
+    srcs = glob(["platforms/*.bzl"]),
+    visibility = ["PUBLIC"],
+)
