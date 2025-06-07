@@ -1,0 +1,70 @@
+load("//rules:proto.bzl", "proto_library")
+load("//rules:cpp.bzl", "cpp_proto_library", "cpp_proto_messages", "cpp_grpc_library")
+
+# Proto library definitions
+proto_library(
+    name = "user_proto",
+    srcs = ["user.proto"],
+    visibility = ["PUBLIC"],
+)
+
+proto_library(
+    name = "user_service_proto",
+    srcs = ["user_service.proto"],
+    deps = [":user_proto"],
+    visibility = ["PUBLIC"],
+)
+
+# C++ protobuf generation - messages only
+cpp_proto_messages(
+    name = "user_cpp_proto",
+    proto = ":user_proto",
+    namespace = "user::v1",
+    visibility = ["PUBLIC"],
+)
+
+# C++ protobuf generation - full gRPC service
+cpp_grpc_library(
+    name = "user_service_cpp_proto",
+    proto = ":user_service_proto",
+    namespace = "user::v1",
+    visibility = ["PUBLIC"],
+)
+
+# Complete C++ library with custom options
+cpp_proto_library(
+    name = "user_cpp_advanced",
+    proto = ":user_proto",
+    namespace = "user::v1::advanced",
+    plugins = ["cpp"],
+    compiler_flags = ["-O3", "-DNDEBUG"],
+    cpp_standard = "c++20",
+    link_type = "static",
+    options = {
+        "cpp_string_type": "std::string",
+        "cpp_enable_arenas": "true",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# High-performance C++ gRPC service with optimizations
+cpp_proto_library(
+    name = "user_service_cpp_optimized",
+    proto = ":user_service_proto",
+    namespace = "user::v1::optimized",
+    plugins = ["cpp", "grpc-cpp"],
+    use_grpc = True,
+    compiler_flags = [
+        "-O3",
+        "-DNDEBUG",
+        "-march=native",
+        "-flto",
+    ],
+    cpp_standard = "c++20",
+    options = {
+        "cpp_enable_arenas": "true",
+        "grpc_async_api": "true",
+        "grpc_performance_mode": "true",
+    },
+    visibility = ["PUBLIC"],
+)

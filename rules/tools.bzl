@@ -364,7 +364,7 @@ def get_tool_requirements(language: str):
             # For now, we'll rely on system-installed grpcio-tools
         },
         "cpp": {
-            # C++ support is built into protoc
+            "protoc-gen-grpc-cpp": "",  # gRPC C++ plugin
         },
         "java": {
             # Java support is built into protoc

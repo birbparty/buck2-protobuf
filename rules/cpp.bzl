@@ -1,8 +1,13 @@
 """C++ protobuf generation rules for Buck2.
 
 This module provides rules for generating C++ code from protobuf definitions.
-Implementation will be completed in Task 008.
+Supports both basic protobuf messages and gRPC services with proper
+namespace support and modern C++17+ features.
 """
+
+load("//rules/private:providers.bzl", "ProtoInfo", "LanguageProtoInfo")
+load("//rules/private:utils.bzl", "get_proto_import_path")
+load("//rules:tools.bzl", "ensure_tools_available", "TOOL_ATTRS", "get_protoc_command")
 
 def cpp_proto_library(
     name: str,
@@ -13,16 +18,546 @@ def cpp_proto_library(
     options: dict[str, str] = {},
     headers: list[str] = [],
     compiler_flags: list[str] = [],
+    use_grpc: bool = False,
+    cpp_standard: str = "c++17",
+    link_type: str = "static",
     **kwargs
 ):
     """
     Generates C++ code from a proto_library target.
     
-    Will be fully implemented in Task 008.
+    Args:
+        name: Unique name for this C++ protobuf library target
+        proto: proto_library target to generate C++ code from
+        namespace: C++ namespace for generated code (e.g., "org::user::v1")
+        visibility: Buck2 visibility specification
+        plugins: List of protoc plugins to use ["cpp", "grpc-cpp"]
+        options: Additional protoc options for C++ generation
+        headers: Additional header files to include in generated code
+        compiler_flags: Additional C++ compiler flags
+        use_grpc: Generate gRPC C++ service code (adds grpc-cpp plugin)
+        cpp_standard: C++ standard to use (c++17, c++20, etc.)
+        link_type: Library linking type ("static", "shared")
+        **kwargs: Additional arguments passed to underlying rule
+    
+    Example:
+        cpp_proto_library(
+            name = "user_cpp_proto",
+            proto = ":user_proto",
+            namespace = "org::user::v1",
+            plugins = ["cpp", "grpc-cpp"],
+            use_grpc = True,
+            cpp_standard = "c++17",
+            visibility = ["PUBLIC"],
+        )
+        
+    Generated Files:
+        - *.pb.h: C++ protobuf header files
+        - *.pb.cc: C++ protobuf implementation files
+        - *.grpc.pb.h: gRPC service header files (if use_grpc=True)
+        - *.grpc.pb.cc: gRPC service implementation files (if use_grpc=True)
+        - BUILD: Buck2 build configuration
     """
-    # Placeholder implementation
-    native.filegroup(
+    # Add grpc-cpp plugin if requested
+    effective_plugins = list(plugins)
+    if use_grpc and "grpc-cpp" not in effective_plugins:
+        effective_plugins.append("grpc-cpp")
+    
+    cpp_proto_library_rule(
         name = name,
-        srcs = [],
+        proto = proto,
+        namespace = namespace,
         visibility = visibility,
+        plugins = effective_plugins,
+        options = options,
+        headers = headers,
+        compiler_flags = compiler_flags,
+        use_grpc = use_grpc,
+        cpp_standard = cpp_standard,
+        link_type = link_type,
+        **kwargs
+    )
+
+def _resolve_namespace(ctx, proto_info):
+    """
+    Resolves the C++ namespace for generated code.
+    
+    Priority order:
+    1. Explicit namespace parameter
+    2. Generated namespace based on proto file path
+    
+    Args:
+        ctx: Buck2 rule context
+        proto_info: ProtoInfo provider from proto dependency
+        
+    Returns:
+        String containing the resolved C++ namespace
+    """
+    # 1. Check explicit parameter
+    if ctx.attrs.namespace:
+        return ctx.attrs.namespace
+    
+    # 2. Generate from proto file path
+    if proto_info.proto_files:
+        proto_file = proto_info.proto_files[0]
+        return _generate_namespace_from_path(proto_file.short_path)
+    
+    return ""
+
+def _generate_namespace_from_path(proto_path: str) -> str:
+    """
+    Generates a C++ namespace from a proto file path.
+    
+    Args:
+        proto_path: Path to the proto file (e.g., "pkg/user/user.proto")
+        
+    Returns:
+        Generated C++ namespace (e.g., "pkg::user")
+    """
+    # Remove .proto extension and get directory
+    if proto_path.endswith(".proto"):
+        proto_path = proto_path[:-6]
+    
+    # Get directory path and convert to namespace
+    parts = proto_path.split("/")
+    if len(parts) > 1:
+        return "::".join(parts[:-1])
+    else:
+        return ""
+
+def _get_cpp_output_files(ctx, proto_info):
+    """
+    Determines the expected C++ output files based on proto content and plugins.
+    
+    Args:
+        ctx: Buck2 rule context
+        proto_info: ProtoInfo provider from proto dependency
+        
+    Returns:
+        List of expected output file objects
+    """
+    output_files = []
+    
+    # Base name from proto files
+    for proto_file in proto_info.proto_files:
+        base_name = proto_file.basename
+        if base_name.endswith(".proto"):
+            base_name = base_name[:-6]
+        
+        # C++ protobuf files (generated by cpp plugin)
+        if "cpp" in ctx.attrs.plugins:
+            pb_header = ctx.actions.declare_output("cpp", "src", base_name + ".pb.h")
+            pb_source = ctx.actions.declare_output("cpp", "src", base_name + ".pb.cc")
+            output_files.extend([pb_header, pb_source])
+        
+        # gRPC C++ service files (if grpc-cpp plugin enabled)
+        if "grpc-cpp" in ctx.attrs.plugins:
+            grpc_header = ctx.actions.declare_output("cpp", "src", base_name + ".grpc.pb.h")
+            grpc_source = ctx.actions.declare_output("cpp", "src", base_name + ".grpc.pb.cc")
+            output_files.extend([grpc_header, grpc_source])
+    
+    # Build configuration files
+    build_file = ctx.actions.declare_output("cpp", "BUILD")
+    output_files.append(build_file)
+    
+    # CMake configuration (optional)
+    cmake_file = ctx.actions.declare_output("cpp", "CMakeLists.txt")
+    output_files.append(cmake_file)
+    
+    return output_files
+
+def _create_build_file_content(ctx, namespace: str) -> str:
+    """
+    Creates BUILD file content for generated C++ code.
+    
+    Args:
+        ctx: Buck2 rule context
+        namespace: C++ namespace for generated code
+        
+    Returns:
+        String content for BUILD file
+    """
+    # Determine source files
+    src_patterns = ["*.pb.cc"]
+    hdr_patterns = ["*.pb.h"]
+    
+    if "grpc-cpp" in ctx.attrs.plugins:
+        src_patterns.append("*.grpc.pb.cc")
+        hdr_patterns.append("*.grpc.pb.h")
+    
+    # Base dependencies
+    deps = [
+        '"@com_google_protobuf//:protobuf"',
+    ]
+    
+    # Add gRPC dependencies if needed
+    if "grpc-cpp" in ctx.attrs.plugins:
+        deps.extend([
+            '"@com_github_grpc_grpc//:grpc++"',
+            '"@com_github_grpc_grpc//:grpc++_reflection"',
+        ])
+    
+    # Compiler flags
+    copts = [
+        '"-std={}"'.format(ctx.attrs.cpp_standard),
+        '"-Wall"',
+        '"-Wextra"',
+        '"-Werror"',
+    ]
+    
+    # Add custom compiler flags
+    for flag in ctx.attrs.compiler_flags:
+        copts.append('"{}"'.format(flag))
+    
+    # Add namespace-specific flags
+    if namespace:
+        copts.append('"-DPROTO_NAMESPACE={}"'.format(namespace.replace("::", "_")))
+    
+    return '''cc_library(
+    name = "{name}",
+    srcs = glob([{src_patterns}]),
+    hdrs = glob([{hdr_patterns}]),
+    deps = [
+        {deps}
+    ],
+    copts = [
+        {copts}
+    ],
+    linkstatic = {linkstatic},
+    visibility = ["{visibility}"],
+)
+
+# Convenience alias for header-only usage
+cc_library(
+    name = "{name}_headers",
+    hdrs = glob([{hdr_patterns}]),
+    deps = [
+        {deps}
+    ],
+    visibility = ["{visibility}"],
+)
+'''.format(
+        name = ctx.label.name,
+        src_patterns = ", ".join(['"{}"'.format(p) for p in src_patterns]),
+        hdr_patterns = ", ".join(['"{}"'.format(p) for p in hdr_patterns]),
+        deps = ",\n        ".join(deps),
+        copts = ",\n        ".join(copts),
+        linkstatic = "True" if ctx.attrs.link_type == "static" else "False",
+        visibility = ctx.attrs.visibility[0] if ctx.attrs.visibility else "//visibility:private",
+    )
+
+def _create_cmake_file_content(ctx, namespace: str) -> str:
+    """
+    Creates CMakeLists.txt file content for CMake integration.
+    
+    Args:
+        ctx: Buck2 rule context
+        namespace: C++ namespace for generated code
+        
+    Returns:
+        String content for CMakeLists.txt file
+    """
+    # Determine source files
+    sources = []
+    for proto_file in ctx.attrs.proto[ProtoInfo].proto_files:
+        base_name = proto_file.basename[:-6] if proto_file.basename.endswith(".proto") else proto_file.basename
+        sources.append("src/{}.pb.cc".format(base_name))
+        if "grpc-cpp" in ctx.attrs.plugins:
+            sources.append("src/{}.grpc.pb.cc".format(base_name))
+    
+    return '''cmake_minimum_required(VERSION 3.16)
+project({name})
+
+# Set C++ standard
+set(CMAKE_CXX_STANDARD {cpp_standard_num})
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Find required packages
+find_package(Protobuf REQUIRED)
+{grpc_find}
+
+# Define the library
+add_library({name} {link_type}
+    {sources}
+)
+
+# Set include directories
+target_include_directories({name} PUBLIC
+    ${{CMAKE_CURRENT_SOURCE_DIR}}/src
+)
+
+# Link libraries
+target_link_libraries({name} PUBLIC
+    protobuf::libprotobuf
+    {grpc_libs}
+)
+
+# Compiler-specific flags
+target_compile_options({name} PRIVATE
+    -Wall -Wextra -Werror
+    {compiler_flags}
+)
+
+# Namespace definition
+{namespace_define}
+'''.format(
+        name = ctx.label.name,
+        cpp_standard_num = ctx.attrs.cpp_standard[3:],  # "c++17" -> "17"
+        link_type = "STATIC" if ctx.attrs.link_type == "static" else "SHARED",
+        sources = "\n    ".join(sources),
+        grpc_find = "find_package(gRPC REQUIRED)" if "grpc-cpp" in ctx.attrs.plugins else "",
+        grpc_libs = "gRPC::grpc++" if "grpc-cpp" in ctx.attrs.plugins else "",
+        compiler_flags = " ".join(ctx.attrs.compiler_flags),
+        namespace_define = 'target_compile_definitions({} PRIVATE PROTO_NAMESPACE={})'.format(
+            ctx.label.name, namespace.replace("::", "_")
+        ) if namespace else "",
+    )
+
+def _generate_cpp_code(ctx, proto_info, tools, output_files, namespace: str):
+    """
+    Executes protoc with C++ plugins to generate C++ code.
+    
+    Args:
+        ctx: Buck2 rule context
+        proto_info: ProtoInfo provider from proto dependency
+        tools: Dictionary of tool file objects
+        output_files: List of expected output files
+        namespace: Resolved C++ namespace
+    """
+    # Create output directory
+    output_dir = ctx.actions.declare_output("cpp")
+    src_dir = ctx.actions.declare_output("cpp", "src")
+    
+    # Build protoc command arguments
+    protoc_cmd = cmd_args([tools["protoc"]])
+    
+    # Add import paths (current + transitive)
+    all_import_paths = proto_info.import_paths + proto_info.transitive_import_paths
+    for import_path in all_import_paths:
+        protoc_cmd.add("--proto_path={}".format(import_path))
+    
+    # Configure C++ code generation
+    if "cpp" in ctx.attrs.plugins:
+        protoc_cmd.add("--cpp_out={}".format(src_dir.as_output()))
+        
+        # Add C++ specific options
+        cpp_options = []
+        if namespace:
+            cpp_options.append("namespace={}".format(namespace))
+        
+        for opt_key, opt_value in ctx.attrs.options.items():
+            if opt_key.startswith("cpp_"):
+                cpp_options.append("{}={}".format(opt_key[4:], opt_value))
+        
+        if cpp_options:
+            protoc_cmd.add("--cpp_opt={}".format(",".join(cpp_options)))
+    
+    # Configure gRPC C++ generation
+    if "grpc-cpp" in ctx.attrs.plugins:
+        protoc_cmd.add("--plugin=protoc-gen-grpc={}".format(tools["protoc-gen-grpc-cpp"]))
+        protoc_cmd.add("--grpc_out={}".format(src_dir.as_output()))
+        
+        # Add gRPC-specific options
+        grpc_options = []
+        if namespace:
+            grpc_options.append("namespace={}".format(namespace))
+        
+        for opt_key, opt_value in ctx.attrs.options.items():
+            if opt_key.startswith("grpc_"):
+                grpc_options.append("{}={}".format(opt_key[5:], opt_value))
+        
+        if grpc_options:
+            protoc_cmd.add("--grpc_opt={}".format(",".join(grpc_options)))
+    
+    # Add proto files
+    protoc_cmd.add(proto_info.proto_files)
+    
+    # Collect all inputs
+    inputs = [tools["protoc"]] + proto_info.proto_files + proto_info.transitive_descriptor_sets
+    
+    # Add plugin binaries if available
+    if "grpc-cpp" in ctx.attrs.plugins and "protoc-gen-grpc-cpp" in tools:
+        inputs.append(tools["protoc-gen-grpc-cpp"])
+    
+    # Run protoc to generate C++ code
+    ctx.actions.run(
+        protoc_cmd,
+        category = "cpp_protoc",
+        identifier = "{}_cpp_generation".format(ctx.label.name),
+        inputs = inputs,
+        outputs = [output_dir, src_dir] + [f for f in output_files if f.short_path.startswith("cpp/src/")],
+        env = {
+            "PATH": "/usr/bin:/bin:/usr/local/bin",
+        },
+        local_only = False,
+    )
+
+def _create_build_config_files(ctx, namespace: str):
+    """
+    Creates build configuration files for C++ integration.
+    
+    Args:
+        ctx: Buck2 rule context
+        namespace: C++ namespace for generated code
+        
+    Returns:
+        List of created file objects
+    """
+    files = []
+    
+    # Create BUILD file
+    build_file = ctx.actions.declare_output("cpp", "BUILD")
+    build_content = _create_build_file_content(ctx, namespace)
+    
+    ctx.actions.write(
+        build_file,
+        build_content,
+    )
+    files.append(build_file)
+    
+    # Create CMakeLists.txt
+    cmake_file = ctx.actions.declare_output("cpp", "CMakeLists.txt")
+    cmake_content = _create_cmake_file_content(ctx, namespace)
+    
+    ctx.actions.write(
+        cmake_file,
+        cmake_content,
+    )
+    files.append(cmake_file)
+    
+    return files
+
+def _cpp_proto_library_impl(ctx):
+    """
+    Implementation function for cpp_proto_library rule.
+    
+    Handles:
+    - C++ namespace resolution
+    - Tool downloading and caching
+    - protoc execution with C++ plugins
+    - Build configuration file generation
+    - Output file management
+    """
+    # Get ProtoInfo from proto dependency
+    proto_info = ctx.attrs.proto[ProtoInfo]
+    
+    # Resolve C++ namespace
+    namespace = _resolve_namespace(ctx, proto_info)
+    
+    # Ensure required tools are available
+    tools = ensure_tools_available(ctx, "cpp")
+    
+    # Add gRPC plugin if needed
+    if "grpc-cpp" in ctx.attrs.plugins:
+        # Note: For C++, gRPC plugin is typically built into protoc or available as protoc-gen-grpc
+        # We'll handle this in the tools.bzl if needed
+        pass
+    
+    # Get expected output files
+    output_files = _get_cpp_output_files(ctx, proto_info)
+    
+    # Generate C++ code using protoc
+    _generate_cpp_code(ctx, proto_info, tools, output_files, namespace)
+    
+    # Create build configuration files
+    config_files = _create_build_config_files(ctx, namespace)
+    output_files.extend(config_files)
+    
+    # Determine dependencies based on plugins used
+    dependencies = ["protobuf"]
+    if "grpc-cpp" in ctx.attrs.plugins:
+        dependencies.extend(["grpc++", "grpc++_reflection"])
+    
+    # Create LanguageProtoInfo provider
+    language_proto_info = LanguageProtoInfo(
+        language = "cpp",
+        generated_files = output_files,
+        package_name = namespace,
+        dependencies = dependencies,
+        compiler_flags = ["-std={}".format(ctx.attrs.cpp_standard)] + ctx.attrs.compiler_flags,
+    )
+    
+    # Return providers
+    return [
+        DefaultInfo(default_outputs = output_files),
+        language_proto_info,
+    ]
+
+# C++ protobuf library rule definition
+cpp_proto_library_rule = rule(
+    impl = _cpp_proto_library_impl,
+    attrs = {
+        "proto": attrs.dep(providers = [ProtoInfo], doc = "Proto library target"),
+        "namespace": attrs.string(default = "", doc = "C++ namespace for generated code"),
+        "plugins": attrs.list(attrs.string(), default = ["cpp"], doc = "Protoc plugins to use"),
+        "options": attrs.dict(attrs.string(), attrs.string(), default = {}, doc = "Additional protoc options"),
+        "headers": attrs.list(attrs.string(), default = [], doc = "Additional header files"),
+        "compiler_flags": attrs.list(attrs.string(), default = [], doc = "Additional C++ compiler flags"),
+        "use_grpc": attrs.bool(default = False, doc = "Generate gRPC C++ service code"),
+        "cpp_standard": attrs.string(default = "c++17", doc = "C++ standard to use"),
+        "link_type": attrs.string(default = "static", doc = "Library linking type"),
+        **TOOL_ATTRS
+    },
+)
+
+# Convenience function for basic C++ protobuf generation (messages only)
+def cpp_proto_messages(
+    name: str,
+    proto: str,
+    namespace: str = "",
+    visibility: list[str] = ["//visibility:private"],
+    **kwargs
+):
+    """
+    Generates only C++ protobuf message code (no gRPC services).
+    
+    This is a convenience wrapper around cpp_proto_library that only
+    generates basic protobuf message types, excluding gRPC services.
+    
+    Args:
+        name: Target name
+        proto: proto_library target
+        namespace: C++ namespace for generated code
+        visibility: Buck2 visibility specification
+        **kwargs: Additional arguments
+    """
+    cpp_proto_library(
+        name = name,
+        proto = proto,
+        namespace = namespace,
+        visibility = visibility,
+        plugins = ["cpp"],  # Only basic C++, no gRPC
+        use_grpc = False,
+        **kwargs
+    )
+
+# Convenience function for gRPC C++ service generation
+def cpp_grpc_library(
+    name: str,
+    proto: str,
+    namespace: str = "",
+    visibility: list[str] = ["//visibility:private"],
+    **kwargs
+):
+    """
+    Generates C++ gRPC services with both messages and service definitions.
+    
+    This is a convenience wrapper around cpp_proto_library that ensures
+    both protobuf messages and gRPC services are generated.
+    
+    Args:
+        name: Target name
+        proto: proto_library target (must contain service definitions)
+        namespace: C++ namespace for generated code
+        visibility: Buck2 visibility specification
+        **kwargs: Additional arguments
+    """
+    cpp_proto_library(
+        name = name,
+        proto = proto,
+        namespace = namespace,
+        visibility = visibility,
+        plugins = ["cpp", "grpc-cpp"],  # Both messages and gRPC services
+        use_grpc = True,
+        **kwargs
     )

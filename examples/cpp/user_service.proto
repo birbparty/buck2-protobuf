@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package user.v1;
+
+import "examples/cpp/user.proto";
+
+option cpp_namespace = "user::v1";
+
+// User management service definition
+service UserService {
+  // Get a user by ID
+  rpc GetUser(GetUserRequest) returns (GetUserResponse) {}
+  
+  // Create a new user
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse) {}
+  
+  // Update an existing user
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse) {}
+  
+  // Delete a user
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse) {}
+  
+  // List users with pagination
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse) {}
+  
+  // Stream user updates
+  rpc StreamUserUpdates(StreamUserUpdatesRequest) returns (stream UserUpdateEvent) {}
+  
+  // Batch operations
+  rpc BatchGetUsers(BatchGetUsersRequest) returns (BatchGetUsersResponse) {}
+  rpc BatchCreateUsers(BatchCreateUsersRequest) returns (BatchCreateUsersResponse) {}
+}
+
+// Get user request
+message GetUserRequest {
+  string user_id = 1;
+  repeated string field_mask = 2;
+}
+
+// Get user response
+message GetUserResponse {
+  User user = 1;
+  bool found = 2;
+}
+
+// Create user request
+message CreateUserRequest {
+  User user = 1;
+  bool validate_only = 2;
+}
+
+// Create user response
+message CreateUserResponse {
+  User user = 1;
+  string user_id = 2;
+  bool success = 3;
+  string error_message = 4;
+}
+
+// Delete user request
+message DeleteUserRequest {
+  string user_id = 1;
+  bool soft_delete = 2;
+}
+
+// Delete user response
+message DeleteUserResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// Stream user updates request
+message StreamUserUpdatesRequest {
+  repeated string user_ids = 1;
+  repeated string event_types = 2;
+}
+
+// User update event
+message UserUpdateEvent {
+  enum EventType {
+    EVENT_TYPE_UNSPECIFIED = 0;
+    EVENT_TYPE_CREATED = 1;
+    EVENT_TYPE_UPDATED = 2;
+    EVENT_TYPE_DELETED = 3;
+    EVENT_TYPE_STATUS_CHANGED = 4;
+  }
+  
+  EventType event_type = 1;
+  User user = 2;
+  User previous_user = 3;
+  int64 timestamp = 4;
+  string event_id = 5;
+}
+
+// Batch get users request
+message BatchGetUsersRequest {
+  repeated string user_ids = 1;
+  repeated string field_mask = 2;
+}
+
+// Batch get users response
+message BatchGetUsersResponse {
+  repeated User users = 1;
+  repeated string not_found_user_ids = 2;
+}
+
+// Batch create users request
+message BatchCreateUsersRequest {
+  repeated User users = 1;
+  bool validate_only = 2;
+}
+
+// Batch create users response
+message BatchCreateUsersResponse {
+  repeated User created_users = 1;
+  repeated BatchCreateError errors = 2;
+}
+
+// Batch create error
+message BatchCreateError {
+  int32 index = 1;
+  string error_message = 2;
+  string error_code = 3;
+}
