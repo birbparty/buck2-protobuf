@@ -197,3 +197,26 @@ ToolIntegrityInfo = provider(fields = [
     "validation_time",     # When validation was performed
     "tool_version",        # Version of the tool validated
 ])
+
+# PerformanceInfo provider - performance optimization results
+PerformanceInfo = provider(fields = [
+    "compilation_time_ms", # Total compilation time in milliseconds
+    "memory_peak_mb",      # Peak memory usage in megabytes
+    "cpu_utilization",     # CPU utilization percentage
+    "cache_hit_rate",      # Cache hit rate percentage
+    "parallel_efficiency", # Parallel execution efficiency
+    "strategy_used",       # Compilation strategy used
+    "artifacts",           # Generated artifacts
+    "performance_metrics", # Detailed performance metrics
+])
+
+# PerformanceMetricsInfo provider - detailed performance metrics
+PerformanceMetricsInfo = provider(fields = [
+    "compilation_time_ms", # Compilation time in milliseconds
+    "memory_peak_mb",      # Peak memory usage in megabytes
+    "cpu_utilization",     # CPU utilization percentage
+    "cache_hit_rate",      # Cache hit rate percentage
+    "parallel_efficiency", # Parallel execution efficiency
+    "files_processed",     # Number of files processed
+    "strategy_used",       # Strategy used for compilation
+])

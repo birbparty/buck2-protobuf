@@ -5,8 +5,10 @@ Supports both basic protobuf messages and gRPC service stubs with proper
 Go module integration.
 """
 
-load("//rules/private:providers.bzl", "ProtoInfo", "LanguageProtoInfo")
+load("//rules/private:providers.bzl", "ProtoInfo", "LanguageProtoInfo", "PerformanceInfo", "PerformanceMetricsInfo")
 load("//rules/private:utils.bzl", "get_proto_import_path")
+load("//rules/private:performance_impl.bzl", "create_performance_optimized_action", "get_default_performance_config")
+load("//rules/private:cache_impl.bzl", "get_default_cache_config")
 load("//rules:tools.bzl", "ensure_tools_available", "TOOL_ATTRS", "get_protoc_command")
 
 def go_proto_library(

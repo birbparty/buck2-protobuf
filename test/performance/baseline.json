@@ -1,0 +1,57 @@
+{
+  "Small Proto Compilation": {
+    "duration_ms": 553.0089378356934,
+    "memory_mb": 0.025,
+    "timestamp": 1749312618.430953
+  },
+  "Medium Proto Compilation": {
+    "duration_ms": 449.7039318084717,
+    "memory_mb": 0.005208333333333333,
+    "timestamp": 1749312618.4309561
+  },
+  "Large Proto Compilation": {
+    "duration_ms": 31.26811981201172,
+    "memory_mb": 0.0,
+    "timestamp": 1749312618.430957
+  },
+  "Incremental Build": {
+    "duration_ms": 363.85483741760254,
+    "memory_mb": 0.003125,
+    "timestamp": 1749312618.430959
+  },
+  "Cache Hit Performance": {
+    "duration_ms": 380.95877170562744,
+    "memory_mb": 0.00625,
+    "timestamp": 1749312618.4309602
+  },
+  "Multi-Language Generation": {
+    "duration_ms": 442.63577461242676,
+    "memory_mb": 0.0,
+    "timestamp": 1749312618.430961
+  },
+  "Dependency Resolution": {
+    "duration_ms": 489.4310235977173,
+    "memory_mb": 0.0,
+    "timestamp": 1749312618.4309618
+  },
+  "Concurrent Builds": {
+    "duration_ms": 98.91295433044434,
+    "memory_mb": 0.21875,
+    "timestamp": 1749312618.430964
+  },
+  "Large Dependency Chain": {
+    "duration_ms": 26.75795555114746,
+    "memory_mb": 0.0,
+    "timestamp": 1749312618.430964
+  },
+  "File Count Scalability": {
+    "duration_ms": 26.829004287719727,
+    "memory_mb": 0.0,
+    "timestamp": 1749312618.430965
+  },
+  "Memory Usage": {
+    "duration_ms": 28.748035430908203,
+    "memory_mb": 24731.59375,
+    "timestamp": 1749312618.430965
+  }
+}

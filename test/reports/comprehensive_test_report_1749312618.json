@@ -1,0 +1,297 @@
+{
+  "timestamp": 1749312601.4225018,
+  "test_categories": {
+    "performance_tests": {
+      "passed": 9,
+      "failed": 2,
+      "total": 11,
+      "success_rate": 0.8181818181818182,
+      "performance_report": {
+        "timestamp": 1749312618.4315012,
+        "summary": {
+          "total_benchmarks": 11,
+          "targets_met": 9,
+          "targets_failed": 2,
+          "success_rate": 0.8181818181818182,
+          "max_memory_mb": 24731.59375,
+          "avg_memory_mb": 2248.350189393939,
+          "max_cpu_percent": 21.0,
+          "regressions_detected": 0
+        },
+        "detailed_results": [
+          {
+            "name": "Small Proto Compilation",
+            "duration_ms": 553.0089378356934,
+            "memory_mb": 0.025,
+            "cpu_percent": 0.4,
+            "success": true,
+            "target_met": true,
+            "target_ms": 2000,
+            "iterations": 5,
+            "metadata": {
+              "min_duration_ms": 329.53500747680664,
+              "max_duration_ms": 868.5619831085205,
+              "std_dev_ms": 238.59400822426565
+            }
+          },
+          {
+            "name": "Medium Proto Compilation",
+            "duration_ms": 449.7039318084717,
+            "memory_mb": 0.005208333333333333,
+            "cpu_percent": 0.43333333333333335,
+            "success": true,
+            "target_met": true,
+            "target_ms": 10000,
+            "iterations": 3,
+            "metadata": {
+              "min_duration_ms": 369.48084831237793,
+              "max_duration_ms": 499.8347759246826,
+              "std_dev_ms": 70.1939724204338
+            }
+          },
+          {
+            "name": "Large Proto Compilation",
+            "duration_ms": 31.26811981201172,
+            "memory_mb": 0.0,
+            "cpu_percent": 5.4,
+            "success": true,
+            "target_met": true,
+            "target_ms": 30000,
+            "iterations": 1,
+            "metadata": {
+              "min_duration_ms": 31.26811981201172,
+              "max_duration_ms": 31.26811981201172,
+              "std_dev_ms": 0
+            }
+          },
+          {
+            "name": "Incremental Build",
+            "duration_ms": 363.85483741760254,
+            "memory_mb": 0.003125,
+            "cpu_percent": 0.58,
+            "success": true,
+            "target_met": true,
+            "target_ms": 500,
+            "iterations": 5,
+            "metadata": {
+              "min_duration_ms": 249.50480461120605,
+              "max_duration_ms": 739.220142364502,
+              "std_dev_ms": 210.36714153600704
+            }
+          },
+          {
+            "name": "Cache Hit Performance",
+            "duration_ms": 380.95877170562744,
+            "memory_mb": 0.00625,
+            "cpu_percent": 0.51,
+            "success": true,
+            "target_met": false,
+            "target_ms": 100,
+            "iterations": 10,
+            "metadata": {
+              "min_duration_ms": 262.0069980621338,
+              "max_duration_ms": 544.1410541534424,
+              "std_dev_ms": 110.19166345164764
+            }
+          },
+          {
+            "name": "Multi-Language Generation",
+            "duration_ms": 442.63577461242676,
+            "memory_mb": 0.0,
+            "cpu_percent": 0.4666666666666667,
+            "success": true,
+            "target_met": true,
+            "target_ms": 5000,
+            "iterations": 3,
+            "metadata": {
+              "min_duration_ms": 264.2712593078613,
+              "max_duration_ms": 557.1620464324951,
+              "std_dev_ms": 156.53352450517218
+            }
+          },
+          {
+            "name": "Dependency Resolution",
+            "duration_ms": 489.4310235977173,
+            "memory_mb": 0.0,
+            "cpu_percent": 0.44999999999999996,
+            "success": true,
+            "target_met": true,
+            "target_ms": 30000,
+            "iterations": 2,
+            "metadata": {
+              "min_duration_ms": 298.4588146209717,
+              "max_duration_ms": 680.4032325744629,
+              "std_dev_ms": 270.0754879712626
+            }
+          },
+          {
+            "name": "Concurrent Builds",
+            "duration_ms": 98.91295433044434,
+            "memory_mb": 0.21875,
+            "cpu_percent": 21.0,
+            "success": true,
+            "target_met": true,
+            "target_ms": 60000,
+            "iterations": 1,
+            "metadata": {
+              "min_duration_ms": 98.91295433044434,
+              "max_duration_ms": 98.91295433044434,
+              "std_dev_ms": 0
+            }
+          },
+          {
+            "name": "Large Dependency Chain",
+            "duration_ms": 26.75795555114746,
+            "memory_mb": 0.0,
+            "cpu_percent": 6.6,
+            "success": true,
+            "target_met": true,
+            "target_ms": 30000,
+            "iterations": 1,
+            "metadata": {
+              "min_duration_ms": 26.75795555114746,
+              "max_duration_ms": 26.75795555114746,
+              "std_dev_ms": 0
+            }
+          },
+          {
+            "name": "File Count Scalability",
+            "duration_ms": 26.829004287719727,
+            "memory_mb": 0.0,
+            "cpu_percent": 6.0,
+            "success": true,
+            "target_met": true,
+            "target_ms": 60000,
+            "iterations": 1,
+            "metadata": {
+              "min_duration_ms": 26.829004287719727,
+              "max_duration_ms": 26.829004287719727,
+              "std_dev_ms": 0
+            }
+          },
+          {
+            "name": "Memory Usage",
+            "duration_ms": 28.748035430908203,
+            "memory_mb": 24731.59375,
+            "cpu_percent": 0,
+            "success": true,
+            "target_met": false,
+            "target_ms": null,
+            "iterations": 1,
+            "metadata": {
+              "max_memory_mb": 24731.59375,
+              "avg_memory_mb": 24731.59375
+            }
+          }
+        ],
+        "target_analysis": {
+          "Small Proto Compilation": {
+            "actual_ms": 553.0089378356934,
+            "target_ms": 2000,
+            "performance_ratio": 0.2765044689178467,
+            "target_met": true
+          },
+          "Medium Proto Compilation": {
+            "actual_ms": 449.7039318084717,
+            "target_ms": 10000,
+            "performance_ratio": 0.04497039318084717,
+            "target_met": true
+          },
+          "Large Proto Compilation": {
+            "actual_ms": 31.26811981201172,
+            "target_ms": 30000,
+            "performance_ratio": 0.0010422706604003907,
+            "target_met": true
+          },
+          "Incremental Build": {
+            "actual_ms": 363.85483741760254,
+            "target_ms": 500,
+            "performance_ratio": 0.7277096748352051,
+            "target_met": true
+          },
+          "Cache Hit Performance": {
+            "actual_ms": 380.95877170562744,
+            "target_ms": 100,
+            "performance_ratio": 3.8095877170562744,
+            "target_met": false
+          },
+          "Multi-Language Generation": {
+            "actual_ms": 442.63577461242676,
+            "target_ms": 5000,
+            "performance_ratio": 0.08852715492248535,
+            "target_met": true
+          },
+          "Dependency Resolution": {
+            "actual_ms": 489.4310235977173,
+            "target_ms": 30000,
+            "performance_ratio": 0.016314367453257244,
+            "target_met": true
+          },
+          "Concurrent Builds": {
+            "actual_ms": 98.91295433044434,
+            "target_ms": 60000,
+            "performance_ratio": 0.0016485492388407389,
+            "target_met": true
+          },
+          "Large Dependency Chain": {
+            "actual_ms": 26.75795555114746,
+            "target_ms": 30000,
+            "performance_ratio": 0.0008919318517049154,
+            "target_met": true
+          },
+          "File Count Scalability": {
+            "actual_ms": 26.829004287719727,
+            "target_ms": 60000,
+            "performance_ratio": 0.00044715007146199545,
+            "target_met": true
+          }
+        },
+        "performance_targets": {
+          "small_proto_ms": 2000,
+          "medium_proto_ms": 10000,
+          "large_proto_ms": 30000,
+          "incremental_ms": 500,
+          "cache_hit_ms": 100,
+          "multi_language_ms": 5000,
+          "memory_limit_mb": 1024,
+          "concurrent_builds": 10,
+          "large_dependency_chain": 100,
+          "file_count_limit": 1000
+        },
+        "regressions": [],
+        "recommendations": [
+          "Optimize Cache Hit Performance: 281.0% over target",
+          "Investigate memory usage in: Memory Usage"
+        ]
+      },
+      "max_memory_mb": 24731.59375,
+      "regressions": 0
+    }
+  },
+  "overall_summary": {
+    "total_tests": 11,
+    "tests_passed": 9,
+    "tests_failed": 2,
+    "success_rate": 0.8181818181818182,
+    "duration_seconds": 17.017956972122192,
+    "coverage_percentage": 0,
+    "coverage_target_met": false,
+    "performance_success_rate": 0.8181818181818182,
+    "max_memory_mb": 24731.59375,
+    "regressions_detected": 0,
+    "quality_gates": {
+      "coverage_95_percent": false,
+      "performance_targets_met": false,
+      "no_regressions": true,
+      "test_success_rate_90_percent": false,
+      "memory_under_1gb": false
+    },
+    "quality_gates_passed": 1,
+    "quality_gates_total": 5,
+    "overall_quality_score": 0.2
+  },
+  "quality_metrics": {
+    "meets_all_targets": false,
+    "production_ready": false
+  }
+}
