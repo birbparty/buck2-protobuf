@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+package example.validated.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "validate/validate.proto";
+
+option go_package = "github.com/example/validated/v1";
+option python_package = "example.validated.v1";
+
+// Service demonstrating protoc-gen-validate integration
+service ValidatedService {
+  // Create user with validation
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse) {
+    option (google.api.http) = {
+      post: "/v1/users"
+      body: "*"
+    };
+  }
+  
+  // Update user profile with validation
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse) {
+    option (google.api.http) = {
+      put: "/v1/users/{user_id}/profile"
+      body: "profile"
+    };
+  }
+  
+  // Search users with validated filters
+  rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse) {
+    option (google.api.http) = {
+      get: "/v1/users/search"
+    };
+  }
+}
+
+message CreateUserRequest {
+  // Email must be valid format
+  string email = 1 [(validate.rules).string.email = true];
+  
+  // Username must be 3-20 characters, alphanumeric
+  string username = 2 [(validate.rules).string = {
+    min_len: 3,
+    max_len: 20,
+    pattern: "^[a-zA-Z0-9_]+$"
+  }];
+  
+  // Password must be at least 8 characters
+  string password = 3 [(validate.rules).string.min_len = 8];
+  
+  // Age must be 13-120
+  int32 age = 4 [(validate.rules).int32 = {gte: 13, lte: 120}];
+  
+  UserProfile profile = 5 [(validate.rules).message.required = true];
+}
+
+message CreateUserResponse {
+  string user_id = 1;
+  string email = 2;
+  string username = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message UserProfile {
+  // Display name must be 1-50 characters
+  string display_name = 1 [(validate.rules).string = {
+    min_len: 1,
+    max_len: 50
+  }];
+  
+  // Bio can be up to 500 characters
+  string bio = 2 [(validate.rules).string.max_len = 500];
+  
+  // Website must be valid URL if provided
+  string website = 3 [(validate.rules).string.uri = true];
+  
+  // Phone number validation (optional)
+  string phone = 4 [(validate.rules).string.pattern = "^\\+[1-9]\\d{1,14}$"];
+  
+  // Country code must be 2 characters if provided
+  string country_code = 5 [(validate.rules).string = {
+    len: 2,
+    pattern: "^[A-Z]{2}$"
+  }];
+}
+
+message UpdateProfileRequest {
+  // User ID is required
+  string user_id = 1 [(validate.rules).string.min_len = 1];
+  
+  UserProfile profile = 2 [(validate.rules).message.required = true];
+}
+
+message UpdateProfileResponse {
+  string user_id = 1;
+  UserProfile profile = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+message SearchUsersRequest {
+  // Search query must be at least 2 characters
+  string query = 1 [(validate.rules).string.min_len = 2];
+  
+  // Page size must be 1-100
+  int32 page_size = 2 [(validate.rules).int32 = {gte: 1, lte: 100}];
+  
+  string page_token = 3;
+  
+  // Filter options
+  SearchFilters filters = 4;
+}
+
+message SearchFilters {
+  // Age range filters
+  int32 min_age = 1 [(validate.rules).int32 = {gte: 13, lte: 120}];
+  int32 max_age = 2 [(validate.rules).int32 = {gte: 13, lte: 120}];
+  
+  // Country filter must be valid country code
+  string country = 3 [(validate.rules).string = {
+    len: 2,
+    pattern: "^[A-Z]{2}$"
+  }];
+  
+  // Has profile picture filter
+  bool has_avatar = 4;
+}
+
+message SearchUsersResponse {
+  repeated UserSearchResult users = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+message UserSearchResult {
+  string user_id = 1;
+  string username = 2;
+  string display_name = 3;
+  string bio = 4;
+  string country_code = 5;
+  google.protobuf.Timestamp last_active = 6;
+}

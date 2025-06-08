@@ -1,0 +1,36 @@
+{
+  "slack": {
+    "enabled": true,
+    "webhook_url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+    "channel": "#schema-changes",
+    "username": "Schema Bot",
+    "icon_emoji": ":gear:"
+  },
+  "teams": {
+    "enabled": true,
+    "webhook_url": "https://outlook.office.com/webhook/YOUR-TEAMS-WEBHOOK"
+  },
+  "email": {
+    "enabled": true,
+    "smtp_server": "smtp.company.com",
+    "smtp_port": 587,
+    "username": "schema-bot@company.com",
+    "password": "${EMAIL_PASSWORD}",
+    "from_address": "schema-bot@company.com",
+    "use_tls": true,
+    "default_recipients": ["platform-team@company.com"]
+  },
+  "webhook": {
+    "enabled": true,
+    "webhook_url": "https://api.company.com/schema-changes",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer ${API_TOKEN}"
+    },
+    "auth": {
+      "type": "bearer",
+      "token": "${API_TOKEN}"
+    }
+  }
+}

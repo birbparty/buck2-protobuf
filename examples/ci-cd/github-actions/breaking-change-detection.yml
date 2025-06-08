@@ -1,0 +1,814 @@
+name: Breaking Change Detection
+
+on:
+  pull_request:
+    paths:
+      - '**/*.proto'
+      - '**/BUCK'
+      - 'rules/**'
+      - 'governance.yaml'
+  push:
+    branches: [main, master]
+    paths:
+      - '**/*.proto'
+      - '**/BUCK'
+      - 'rules/**'
+      - 'governance.yaml'
+  workflow_dispatch:
+    inputs:
+      against_ref:
+        description: 'Compare against ref (branch/tag/commit)'
+        required: false
+        default: 'origin/main'
+      registry:
+        description: 'Registry to compare against'
+        required: false
+        default: 'oras.birb.homes'
+      policy:
+        description: 'Breaking change policy'
+        required: false
+        default: 'warn'
+        type: choice
+        options:
+          - allow
+          - warn
+          - error
+          - require_approval
+
+env:
+  BUCK2_VERSION: "latest"
+  PROTOC_VERSION: "25.1"
+  DEFAULT_REGISTRY: "oras.birb.homes"
+
+jobs:
+  detect-changes:
+    name: Detect Breaking Changes
+    runs-on: ubuntu-latest
+    
+    outputs:
+      has_breaking_changes: ${{ steps.analysis.outputs.has_breaking_changes }}
+      breaking_policy: ${{ steps.policy.outputs.breaking_policy }}
+      change_count: ${{ steps.analysis.outputs.change_count }}
+      requires_approval: ${{ steps.policy.outputs.requires_approval }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for comparison
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || echo "No requirements.txt found"
+          
+          # Install additional dependencies for analysis
+          pip install protobuf semantic-version gitpython
+      
+      - name: Setup Protocol Buffers
+        uses: arduino/setup-protoc@v2
+        with:
+          version: ${{ env.PROTOC_VERSION }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Buck2
+        run: |
+          # Download and install Buck2
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            BUCK2_PLATFORM="linux"
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            BUCK2_PLATFORM="macos"
+          else
+            echo "Unsupported platform: $RUNNER_OS"
+            exit 1
+          fi
+          
+          # Get latest Buck2 release
+          if [[ "$BUCK2_VERSION" == "latest" ]]; then
+            BUCK2_VERSION=$(curl -s https://api.github.com/repos/facebook/buck2/releases/latest | jq -r .tag_name)
+          fi
+          
+          echo "Installing Buck2 $BUCK2_VERSION for $BUCK2_PLATFORM"
+          curl -L "https://github.com/facebook/buck2/releases/download/$BUCK2_VERSION/buck2-$BUCK2_PLATFORM.zst" -o buck2.zst
+          
+          # Install zstd for decompression
+          sudo apt-get update && sudo apt-get install -y zstd
+          
+          # Decompress and install
+          zstd -d buck2.zst
+          chmod +x buck2
+          sudo mv buck2 /usr/local/bin/
+          
+          # Verify installation
+          buck2 --version
+      
+      - name: Cache Buck2 build outputs
+        uses: actions/cache@v3
+        with:
+          path: |
+            buck-out/
+            .buck2/
+          key: ${{ runner.os }}-buck2-breaking-${{ hashFiles('**/*.proto', '**/BUCK', '.buckconfig') }}
+          restore-keys: |
+            ${{ runner.os }}-buck2-breaking-
+            ${{ runner.os }}-buck2-
+      
+      - name: Determine comparison strategy
+        id: strategy
+        run: |
+          # Determine what to compare against
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            AGAINST_REF="${{ github.event.inputs.against_ref }}"
+            REGISTRY="${{ github.event.inputs.registry }}"
+            POLICY="${{ github.event.inputs.policy }}"
+          else
+            # Default comparison strategy
+            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              AGAINST_REF="origin/${{ github.base_ref }}"
+            else
+              AGAINST_REF="HEAD~1"  # Compare against previous commit
+            fi
+            REGISTRY="${DEFAULT_REGISTRY}"
+            POLICY="warn"  # Default policy
+          fi
+          
+          echo "AGAINST_REF=${AGAINST_REF}" >> $GITHUB_OUTPUT
+          echo "REGISTRY=${REGISTRY}" >> $GITHUB_OUTPUT
+          echo "POLICY=${POLICY}" >> $GITHUB_OUTPUT
+          
+          echo "🔍 Breaking change detection strategy:"
+          echo "  Comparing against: ${AGAINST_REF}"
+          echo "  Registry: ${REGISTRY}"
+          echo "  Policy: ${POLICY}"
+      
+      - name: Setup comparison baseline
+        env:
+          AGAINST_REF: ${{ steps.strategy.outputs.AGAINST_REF }}
+        run: |
+          echo "📋 Setting up comparison baseline..."
+          
+          # Ensure we have the baseline ref
+          if git rev-parse --verify "${AGAINST_REF}" >/dev/null 2>&1; then
+            echo "✅ Baseline ref exists: ${AGAINST_REF}"
+          else
+            echo "⚠️  Baseline ref not found, fetching..."
+            git fetch origin || echo "Could not fetch from origin"
+            
+            if ! git rev-parse --verify "${AGAINST_REF}" >/dev/null 2>&1; then
+              echo "❌ Could not resolve baseline ref: ${AGAINST_REF}"
+              echo "Available refs:"
+              git branch -a
+              exit 1
+            fi
+          fi
+          
+          # Create baseline workspace
+          mkdir -p .breaking-change-analysis/baseline
+          mkdir -p .breaking-change-analysis/current
+          
+          # Extract baseline proto files
+          echo "Extracting baseline proto files..."
+          git archive "${AGAINST_REF}" | tar -x -C .breaking-change-analysis/baseline/
+          
+          # Copy current proto files
+          echo "Copying current proto files..."
+          cp -r . .breaking-change-analysis/current/
+          
+          echo "📊 Baseline setup complete:"
+          echo "  Baseline protos: $(find .breaking-change-analysis/baseline -name '*.proto' | wc -l)"
+          echo "  Current protos: $(find .breaking-change-analysis/current -name '*.proto' | wc -l)"
+      
+      - name: Run Buck2 breaking change detection
+        id: buck2_analysis
+        env:
+          REGISTRY: ${{ steps.strategy.outputs.REGISTRY }}
+        run: |
+          echo "🔍 Running Buck2 breaking change detection..."
+          
+          # Check for Buck2 breaking change targets
+          if buck2 query "kind(bsr_breaking_check, //...)" 2>/dev/null | head -1; then
+            echo "Found Buck2 breaking change targets, running them..."
+            
+            # Run all breaking change check targets
+            BREAKING_TARGETS=$(buck2 query "kind(bsr_breaking_check, //...)" 2>/dev/null)
+            
+            echo "🎯 Breaking change targets found:"
+            echo "$BREAKING_TARGETS"
+            
+            # Create results directory
+            mkdir -p .breaking-change-analysis/buck2-results
+            
+            # Run each target and capture results
+            for target in $BREAKING_TARGETS; do
+              echo "Running breaking change check: ${target}"
+              
+              # Run the target and capture output
+              if buck2 run "${target}" > ".breaking-change-analysis/buck2-results/$(basename ${target}).log" 2>&1; then
+                echo "✅ ${target}: No breaking changes detected"
+              else
+                echo "⚠️  ${target}: Breaking changes detected"
+                echo "BUCK2_BREAKING_DETECTED=true" >> $GITHUB_OUTPUT
+              fi
+            done
+            
+            echo "BUCK2_TARGETS_FOUND=true" >> $GITHUB_OUTPUT
+          else
+            echo "No Buck2 breaking change targets found"
+            echo "BUCK2_TARGETS_FOUND=false" >> $GITHUB_OUTPUT
+            echo "BUCK2_BREAKING_DETECTED=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Analyze protobuf changes
+        id: analysis
+        run: |
+          echo "🔬 Analyzing protobuf changes..."
+          
+          # Python script for detailed protobuf analysis
+          python3 << 'EOF'
+          import os
+          import glob
+          import json
+          import re
+          import subprocess
+          from pathlib import Path
+          
+          def parse_proto_file(file_path):
+              """Parse a proto file and extract key information."""
+              try:
+                  with open(file_path, 'r') as f:
+                      content = f.read()
+              except:
+                  return None
+              
+              info = {
+                  'package': None,
+                  'messages': [],
+                  'enums': [],
+                  'services': [],
+                  'fields': {},
+                  'enum_values': {}
+              }
+              
+              lines = content.split('\n')
+              current_message = None
+              current_enum = None
+              
+              for line in lines:
+                  line = line.strip()
+                  
+                  # Extract package
+                  if line.startswith('package '):
+                      info['package'] = line.split()[1].rstrip(';')
+                  
+                  # Extract messages
+                  elif line.startswith('message '):
+                      msg_name = line.split()[1].rstrip(' {')
+                      info['messages'].append(msg_name)
+                      current_message = msg_name
+                      info['fields'][msg_name] = []
+                  
+                  # Extract enums
+                  elif line.startswith('enum '):
+                      enum_name = line.split()[1].rstrip(' {')
+                      info['enums'].append(enum_name)
+                      current_enum = enum_name
+                      info['enum_values'][enum_name] = []
+                  
+                  # Extract services
+                  elif line.startswith('service '):
+                      service_name = line.split()[1].rstrip(' {')
+                      info['services'].append(service_name)
+                  
+                  # Extract fields (basic parsing)
+                  elif current_message and '=' in line:
+                      # Simple field parsing (not comprehensive, but sufficient for basic analysis)
+                      parts = line.strip().rstrip(';').split()
+                      if len(parts) >= 3 and parts[-1].startswith('[') == False:
+                          field_num_part = parts[-1]
+                          if '=' in field_num_part:
+                              field_num = field_num_part.split('=')[1]
+                              field_name = parts[-2]
+                              field_type = ' '.join(parts[:-2])
+                              info['fields'][current_message].append({
+                                  'type': field_type,
+                                  'name': field_name,
+                                  'number': field_num
+                              })
+                  
+                  # Extract enum values
+                  elif current_enum and '=' in line and not line.startswith('option'):
+                      parts = line.strip().rstrip(';').split('=')
+                      if len(parts) == 2:
+                          enum_name = parts[0].strip()
+                          enum_value = parts[1].strip()
+                          info['enum_values'][current_enum].append({
+                              'name': enum_name,
+                              'value': enum_value
+                          })
+                  
+                  # Reset context
+                  elif line == '}':
+                      current_message = None
+                      current_enum = None
+              
+              return info
+          
+          def detect_breaking_changes(baseline_info, current_info, file_path):
+              """Detect breaking changes between baseline and current proto info."""
+              changes = []
+              
+              if not baseline_info or not current_info:
+                  return changes
+              
+              # Check package changes
+              if baseline_info.get('package') != current_info.get('package'):
+                  changes.append({
+                      'type': 'PACKAGE_CHANGED',
+                      'severity': 'BREAKING',
+                      'description': f"Package changed from '{baseline_info.get('package')}' to '{current_info.get('package')}'",
+                      'file': file_path
+                  })
+              
+              # Check removed messages
+              baseline_messages = set(baseline_info.get('messages', []))
+              current_messages = set(current_info.get('messages', []))
+              
+              for removed_msg in baseline_messages - current_messages:
+                  changes.append({
+                      'type': 'MESSAGE_REMOVED',
+                      'severity': 'BREAKING',
+                      'description': f"Message '{removed_msg}' was removed",
+                      'file': file_path
+                  })
+              
+              # Check removed enums
+              baseline_enums = set(baseline_info.get('enums', []))
+              current_enums = set(current_info.get('enums', []))
+              
+              for removed_enum in baseline_enums - current_enums:
+                  changes.append({
+                      'type': 'ENUM_REMOVED',
+                      'severity': 'BREAKING',
+                      'description': f"Enum '{removed_enum}' was removed",
+                      'file': file_path
+                  })
+              
+              # Check removed services
+              baseline_services = set(baseline_info.get('services', []))
+              current_services = set(current_info.get('services', []))
+              
+              for removed_service in baseline_services - current_services:
+                  changes.append({
+                      'type': 'SERVICE_REMOVED',
+                      'severity': 'BREAKING',
+                      'description': f"Service '{removed_service}' was removed",
+                      'file': file_path
+                  })
+              
+              # Check field changes for common messages
+              for msg in baseline_messages & current_messages:
+                  baseline_fields = {f['number']: f for f in baseline_info.get('fields', {}).get(msg, [])}
+                  current_fields = {f['number']: f for f in current_info.get('fields', {}).get(msg, [])}
+                  
+                  # Check removed fields
+                  for field_num in set(baseline_fields.keys()) - set(current_fields.keys()):
+                      field = baseline_fields[field_num]
+                      changes.append({
+                          'type': 'FIELD_REMOVED',
+                          'severity': 'BREAKING',
+                          'description': f"Field '{field['name']}' (#{field_num}) was removed from message '{msg}'",
+                          'file': file_path
+                      })
+                  
+                  # Check field type changes
+                  for field_num in set(baseline_fields.keys()) & set(current_fields.keys()):
+                      baseline_field = baseline_fields[field_num]
+                      current_field = current_fields[field_num]
+                      
+                      if baseline_field['type'] != current_field['type']:
+                          changes.append({
+                              'type': 'FIELD_TYPE_CHANGED',
+                              'severity': 'BREAKING',
+                              'description': f"Field '{baseline_field['name']}' type changed from '{baseline_field['type']}' to '{current_field['type']}' in message '{msg}'",
+                              'file': file_path
+                          })
+              
+              # Check enum value changes
+              for enum in baseline_enums & current_enums:
+                  baseline_values = {v['name']: v for v in baseline_info.get('enum_values', {}).get(enum, [])}
+                  current_values = {v['name']: v for v in current_info.get('enum_values', {}).get(enum, [])}
+                  
+                  # Check removed enum values
+                  for removed_value in set(baseline_values.keys()) - set(current_values.keys()):
+                      changes.append({
+                          'type': 'ENUM_VALUE_REMOVED',
+                          'severity': 'BREAKING',
+                          'description': f"Enum value '{removed_value}' was removed from enum '{enum}'",
+                          'file': file_path
+                      })
+                  
+                  # Check enum value number changes
+                  for value_name in set(baseline_values.keys()) & set(current_values.keys()):
+                      if baseline_values[value_name]['value'] != current_values[value_name]['value']:
+                          changes.append({
+                              'type': 'ENUM_VALUE_CHANGED',
+                              'severity': 'BREAKING',
+                              'description': f"Enum value '{value_name}' number changed from {baseline_values[value_name]['value']} to {current_values[value_name]['value']} in enum '{enum}'",
+                              'file': file_path
+                          })
+              
+              return changes
+          
+          # Find all proto files in both baseline and current
+          baseline_protos = set(glob.glob('.breaking-change-analysis/baseline/**/*.proto', recursive=True))
+          current_protos = set(glob.glob('.breaking-change-analysis/current/**/*.proto', recursive=True))
+          
+          # Convert to relative paths
+          baseline_protos = {p.replace('.breaking-change-analysis/baseline/', '') for p in baseline_protos}
+          current_protos = {p.replace('.breaking-change-analysis/current/', '') for p in current_protos}
+          
+          all_changes = []
+          
+          # Check removed files
+          for removed_file in baseline_protos - current_protos:
+              all_changes.append({
+                  'type': 'FILE_REMOVED',
+                  'severity': 'BREAKING',
+                  'description': f"Proto file '{removed_file}' was removed",
+                  'file': removed_file
+              })
+          
+          # Check added files (non-breaking)
+          for added_file in current_protos - baseline_protos:
+              all_changes.append({
+                  'type': 'FILE_ADDED',
+                  'severity': 'NON_BREAKING',
+                  'description': f"Proto file '{added_file}' was added",
+                  'file': added_file
+              })
+          
+          # Analyze changes in existing files
+          for proto_file in baseline_protos & current_protos:
+              baseline_path = f'.breaking-change-analysis/baseline/{proto_file}'
+              current_path = f'.breaking-change-analysis/current/{proto_file}'
+              
+              baseline_info = parse_proto_file(baseline_path)
+              current_info = parse_proto_file(current_path)
+              
+              file_changes = detect_breaking_changes(baseline_info, current_info, proto_file)
+              all_changes.extend(file_changes)
+          
+          # Categorize changes
+          breaking_changes = [c for c in all_changes if c['severity'] == 'BREAKING']
+          non_breaking_changes = [c for c in all_changes if c['severity'] == 'NON_BREAKING']
+          
+          # Write results
+          results = {
+              'total_changes': len(all_changes),
+              'breaking_changes': len(breaking_changes),
+              'non_breaking_changes': len(non_breaking_changes),
+              'changes': all_changes
+          }
+          
+          with open('.breaking-change-analysis/analysis_results.json', 'w') as f:
+              json.dump(results, f, indent=2)
+          
+          # Output for GitHub Actions
+          print(f"📊 Analysis Results:")
+          print(f"  Total changes: {len(all_changes)}")
+          print(f"  Breaking changes: {len(breaking_changes)}")
+          print(f"  Non-breaking changes: {len(non_breaking_changes)}")
+          
+          # Set outputs
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"has_breaking_changes={'true' if breaking_changes else 'false'}\n")
+              f.write(f"change_count={len(all_changes)}\n")
+              f.write(f"breaking_count={len(breaking_changes)}\n")
+          
+          if breaking_changes:
+              print("\n💥 Breaking Changes Detected:")
+              for change in breaking_changes:
+                  print(f"  - {change['type']}: {change['description']}")
+          
+          if non_breaking_changes:
+              print("\n✅ Non-Breaking Changes:")
+              for change in non_breaking_changes[:5]:  # Show first 5
+                  print(f"  - {change['type']}: {change['description']}")
+              if len(non_breaking_changes) > 5:
+                  print(f"  ... and {len(non_breaking_changes) - 5} more")
+          EOF
+      
+      - name: Apply breaking change policy
+        id: policy
+        env:
+          POLICY: ${{ steps.strategy.outputs.POLICY }}
+          HAS_BREAKING: ${{ steps.analysis.outputs.has_breaking_changes }}
+          BUCK2_BREAKING: ${{ steps.buck2_analysis.outputs.BUCK2_BREAKING_DETECTED }}
+        run: |
+          echo "📋 Applying breaking change policy: ${POLICY}"
+          
+          # Load analysis results
+          if [[ -f .breaking-change-analysis/analysis_results.json ]]; then
+            ANALYSIS_RESULTS=$(cat .breaking-change-analysis/analysis_results.json)
+            BREAKING_COUNT=$(echo "$ANALYSIS_RESULTS" | jq -r '.breaking_changes')
+          else
+            BREAKING_COUNT=0
+          fi
+          
+          # Determine if we have breaking changes from any source
+          HAS_ANY_BREAKING="false"
+          if [[ "$HAS_BREAKING" == "true" || "$BUCK2_BREAKING" == "true" ]]; then
+            HAS_ANY_BREAKING="true"
+          fi
+          
+          echo "🔍 Policy Analysis:"
+          echo "  Policy: ${POLICY}"
+          echo "  Has breaking changes: ${HAS_ANY_BREAKING}"
+          echo "  Breaking change count: ${BREAKING_COUNT}"
+          
+          # Apply policy
+          case "$POLICY" in
+            "allow")
+              echo "✅ Policy: ALLOW - Breaking changes are permitted"
+              echo "policy_result=allow" >> $GITHUB_OUTPUT
+              echo "requires_approval=false" >> $GITHUB_OUTPUT
+              echo "should_fail=false" >> $GITHUB_OUTPUT
+              ;;
+            "warn")
+              if [[ "$HAS_ANY_BREAKING" == "true" ]]; then
+                echo "⚠️  Policy: WARN - Breaking changes detected but proceeding"
+              else
+                echo "✅ Policy: WARN - No breaking changes detected"
+              fi
+              echo "policy_result=warn" >> $GITHUB_OUTPUT
+              echo "requires_approval=false" >> $GITHUB_OUTPUT
+              echo "should_fail=false" >> $GITHUB_OUTPUT
+              ;;
+            "error")
+              if [[ "$HAS_ANY_BREAKING" == "true" ]]; then
+                echo "❌ Policy: ERROR - Breaking changes detected, failing build"
+                echo "policy_result=error" >> $GITHUB_OUTPUT
+                echo "should_fail=true" >> $GITHUB_OUTPUT
+              else
+                echo "✅ Policy: ERROR - No breaking changes detected"
+                echo "policy_result=allow" >> $GITHUB_OUTPUT
+                echo "should_fail=false" >> $GITHUB_OUTPUT
+              fi
+              echo "requires_approval=false" >> $GITHUB_OUTPUT
+              ;;
+            "require_approval")
+              if [[ "$HAS_ANY_BREAKING" == "true" ]]; then
+                echo "🔒 Policy: REQUIRE_APPROVAL - Breaking changes require approval"
+                echo "policy_result=require_approval" >> $GITHUB_OUTPUT
+                echo "requires_approval=true" >> $GITHUB_OUTPUT
+                echo "should_fail=true" >> $GITHUB_OUTPUT
+              else
+                echo "✅ Policy: REQUIRE_APPROVAL - No breaking changes detected"
+                echo "policy_result=allow" >> $GITHUB_OUTPUT
+                echo "requires_approval=false" >> $GITHUB_OUTPUT
+                echo "should_fail=false" >> $GITHUB_OUTPUT
+              fi
+              ;;
+            *)
+              echo "❌ Unknown policy: ${POLICY}"
+              echo "policy_result=error" >> $GITHUB_OUTPUT
+              echo "should_fail=true" >> $GITHUB_OUTPUT
+              ;;
+          esac
+          
+          echo "breaking_policy=${POLICY}" >> $GITHUB_OUTPUT
+      
+      - name: Generate breaking change report
+        if: always()
+        run: |
+          echo "📊 Generating breaking change report..."
+          
+          # Load results if available
+          if [[ -f .breaking-change-analysis/analysis_results.json ]]; then
+            ANALYSIS_DATA=$(cat .breaking-change-analysis/analysis_results.json)
+          else
+            ANALYSIS_DATA='{"total_changes": 0, "breaking_changes": 0, "changes": []}'
+          fi
+          
+          cat > breaking_change_report.md << EOF
+          # Breaking Change Detection Report
+          
+          **Repository:** \${{ github.repository }}  
+          **Commit:** \${{ github.sha }}  
+          **Compared Against:** \${{ steps.strategy.outputs.AGAINST_REF }}  
+          **Policy:** \${{ steps.strategy.outputs.POLICY }}
+          
+          ## Summary
+          
+          - **Total Changes:** $(echo "$ANALYSIS_DATA" | jq -r '.total_changes')
+          - **Breaking Changes:** $(echo "$ANALYSIS_DATA" | jq -r '.breaking_changes')
+          - **Non-Breaking Changes:** $(echo "$ANALYSIS_DATA" | jq -r '.non_breaking_changes')
+          - **Policy Result:** \${{ steps.policy.outputs.policy_result }}
+          
+          ## Analysis Details
+          
+          $(if [[ "\${{ steps.analysis.outputs.has_breaking_changes }}" == "true" ]]; then
+            echo "### 💥 Breaking Changes Detected"
+            echo
+            echo "\`\`\`json"
+            echo "$ANALYSIS_DATA" | jq -r '.changes[] | select(.severity == "BREAKING") | "- \(.type): \(.description)"'
+            echo "\`\`\`"
+          else
+            echo "### ✅ No Breaking Changes Detected"
+          fi)
+          
+          $(if [[ "\${{ steps.buck2_analysis.outputs.BUCK2_TARGETS_FOUND }}" == "true" ]]; then
+            echo "## Buck2 Analysis Results"
+            echo
+            if [[ "\${{ steps.buck2_analysis.outputs.BUCK2_BREAKING_DETECTED }}" == "true" ]]; then
+              echo "⚠️ Buck2 breaking change targets detected issues"
+            else
+              echo "✅ Buck2 breaking change targets passed"
+            fi
+            echo
+            echo "Buck2 target logs available in artifacts."
+          fi)
+          
+          ## Policy Application
+          
+          **Policy:** \${{ steps.strategy.outputs.POLICY }}
+          
+          $(case "\${{ steps.policy.outputs.policy_result }}" in
+            "allow")
+              echo "✅ **ALLOWED** - Breaking changes are permitted by policy"
+              ;;
+            "warn")
+              echo "⚠️  **WARNING** - Breaking changes detected but allowed"
+              ;;
+            "error")
+              echo "❌ **BLOCKED** - Breaking changes violate policy"
+              ;;
+            "require_approval")
+              echo "🔒 **APPROVAL REQUIRED** - Breaking changes require manual approval"
+              ;;
+          esac)
+          
+          $(if [[ "\${{ steps.policy.outputs.requires_approval }}" == "true" ]]; then
+            echo "## Approval Required"
+            echo
+            echo "To approve these breaking changes, use the governance workflow:"
+            echo "\`\`\`bash"
+            echo "buck2 run //schemas:approve_breaking_changes"
+            echo "\`\`\`"
+          fi)
+          
+          ---
+          *Generated on \$(date)*
+          EOF
+          
+          echo "Breaking change report:"
+          cat breaking_change_report.md
+      
+      - name: Upload analysis artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: breaking-change-analysis
+          path: |
+            breaking_change_report.md
+            .breaking-change-analysis/
+          retention-days: 30
+      
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            
+            try {
+              const report = fs.readFileSync('breaking_change_report.md', 'utf8');
+              
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## 🔍 Breaking Change Analysis\n\n${report}`
+              });
+            } catch (error) {
+              console.log('Could not create PR comment:', error);
+            }
+      
+      - name: Fail if policy requires it
+        if: steps.policy.outputs.should_fail == 'true'
+        run: |
+          echo "❌ Breaking change policy requires this workflow to fail"
+          echo "Policy: ${{ steps.policy.outputs.policy_result }}"
+          echo "Breaking changes detected: ${{ steps.analysis.outputs.has_breaking_changes }}"
+          exit 1
+
+  governance-integration:
+    name: Governance Integration
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.requires_approval == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Setup Buck2
+        run: |
+          # Download and install Buck2 (abbreviated setup)
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            BUCK2_PLATFORM="linux"
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            BUCK2_PLATFORM="macos"
+          else
+            echo "Unsupported platform: $RUNNER_OS"
+            exit 1
+          fi
+          
+          BUCK2_VERSION=$(curl -s https://api.github.com/repos/facebook/buck2/releases/latest | jq -r .tag_name)
+          curl -L "https://github.com/facebook/buck2/releases/download/$BUCK2_VERSION/buck2-$BUCK2_PLATFORM.zst" -o buck2.zst
+          sudo apt-get update && sudo apt-get install -y zstd
+          zstd -d buck2.zst
+          chmod +x buck2
+          sudo mv buck2 /usr/local/bin/
+      
+      - name: Create governance review request
+        env:
+          BREAKING_COUNT: ${{ needs.detect-changes.outputs.change_count }}
+        run: |
+          echo "🔒 Creating governance review request for breaking changes..."
+          
+          # Look for governance targets
+          if buck2 query "kind(schema_review, //...)" 2>/dev/null | head -1; then
+            echo "Found governance review targets, creating review request..."
+            
+            # This would integrate with the governance system
+            # For now, just create a notification
+            echo "📋 Governance Review Required"
+            echo "  Breaking changes: ${BREAKING_COUNT}"
+            echo "  Review process will be initiated automatically"
+            
+            # Run governance review targets
+            for target in $(buck2 query "kind(schema_review, //...)" 2>/dev/null); do
+              echo "Initiating review for: ${target}"
+              buck2 run "${target}" || echo "Review initiation failed for ${target}"
+            done
+          else
+            echo "⚠️  No governance review targets found"
+            echo "Breaking changes detected but no review workflow configured"
+          fi
+      
+      - name: Create approval request issue
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const title = `🔒 Breaking Change Approval Required - ${context.repo.repo}`;
+            const body = `
+            ## Breaking Change Approval Required
+            
+            **Repository:** ${context.repo.owner}/${context.repo.repo}
+            **Commit:** ${context.sha}
+            **PR:** ${{ github.event.pull_request.number || 'N/A' }}
+            **Breaking Changes:** ${{ needs.detect-changes.outputs.change_count }}
+            
+            ### Review Required
+            
+            This commit introduces breaking changes that require manual approval according to the governance policy.
+            
+            ### Actions Required
+            
+            1. Review the breaking changes in the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId})
+            2. If approved, add a comment with: \`/approve-breaking-changes\`
+            3. Re-run the workflow after approval
+            
+            ### Breaking Change Policy
+            
+            Policy: **require_approval**
+            
+            ---
+            *This issue was automatically created by the Breaking Change Detection workflow.*
+            `;
+            
+            try {
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['breaking-changes', 'governance', 'requires-approval']
+              });
+              
+              console.log(`Created approval request issue: ${issue.data.html_url}`);
+            } catch (error) {
+              console.log('Could not create issue:', error);
+            }

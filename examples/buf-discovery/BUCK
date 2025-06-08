@@ -1,0 +1,79 @@
+load("//rules:buf.bzl", "buf_lint", "buf_format", "buf_breaking")
+
+# Example 1: Simple module with automatic config discovery
+# This will automatically discover the buf.yaml in this directory
+buf_lint(
+    name = "lint_simple",
+    srcs = ["simple.proto"],
+    # No buf_yaml specified - will be discovered automatically
+    visibility = ["PUBLIC"],
+)
+
+buf_format(
+    name = "format_simple", 
+    srcs = ["simple.proto"],
+    diff = True,
+    # Configuration discovery will find buf.yaml automatically
+    visibility = ["PUBLIC"],
+)
+
+# Example 2: Module with rule parameter overrides
+# This demonstrates how rule parameters take precedence over config file
+buf_lint(
+    name = "lint_with_overrides",
+    srcs = ["api.proto"],
+    config = {
+        "use": ["DEFAULT", "COMMENTS", "FIELD_NAMES_LOWER_SNAKE_CASE"],
+        "except": ["PACKAGE_VERSION_SUFFIX"],
+        "enum_zero_value_suffix": "_UNKNOWN",
+    },
+    # Even if buf.yaml exists, these overrides take precedence
+    visibility = ["PUBLIC"],
+)
+
+# Example 3: Hierarchical config discovery
+# Proto files in subdirectory will discover config from parent
+buf_lint(
+    name = "lint_nested",
+    srcs = ["api/v1/service.proto", "api/v1/types.proto"],
+    # Will search up the directory tree for buf.yaml
+    visibility = ["PUBLIC"],
+)
+
+# Example 4: Breaking change detection with config discovery
+buf_breaking(
+    name = "check_breaking_changes",
+    srcs = ["api.proto"],
+    against = "//examples/buf:api_baseline",
+    # Configuration for breaking rules will be discovered
+    visibility = ["PUBLIC"],
+)
+
+# Example 5: Multi-module workspace support
+# When buf.work.yaml exists, it will be used for workspace-level config
+buf_lint(
+    name = "lint_workspace_module", 
+    srcs = ["workspace/module1/*.proto"],
+    # Will discover buf.work.yaml and module-specific buf.yaml
+    visibility = ["PUBLIC"],
+)
+
+# Example 6: Format with explicit config file
+buf_format(
+    name = "format_explicit_config",
+    srcs = ["custom.proto"],
+    buf_yaml = "custom-buf.yaml",
+    write = True,
+    # Explicit config takes highest precedence
+    visibility = ["PUBLIC"],
+)
+
+# Example 7: Error handling example
+# This demonstrates validation error reporting
+buf_lint(
+    name = "lint_with_validation",
+    srcs = ["complex.proto"],
+    fail_on_error = True,
+    # If config has validation errors, build will fail with clear messages
+    visibility = ["PUBLIC"],
+)

@@ -394,13 +394,137 @@ message TestResponse {
             # Unknown plugin type
             return []
     
+    def validate_buf_version(self, binary_path: Path, expected_version: Optional[str] = None) -> bool:
+        """
+        Validate Buf CLI binary functionality and version.
+        
+        Args:
+            binary_path: Path to buf binary
+            expected_version: Expected buf version (optional)
+            
+        Returns:
+            True if validation passes, False otherwise
+        """
+        self.log(f"Validating buf binary: {binary_path}")
+        
+        # Check executable permissions
+        if not self.validate_executable_permissions(binary_path):
+            return False
+        
+        # Test basic functionality with --version
+        success, stdout, stderr = self.run_command_safely([str(binary_path), "--version"])
+        if not success:
+            self.log(f"Failed to run buf --version: {stderr}")
+            return False
+        
+        # Parse version from output
+        if not stdout:
+            self.log(f"No version output from buf: {stderr}")
+            return False
+        
+        # Extract version number from output (format: "1.47.2")
+        try:
+            actual_version = stdout.strip()
+            self.log(f"Detected buf version: {actual_version}")
+            
+            # Validate expected version if provided
+            if expected_version and actual_version != expected_version:
+                self.log(f"Version mismatch: expected {expected_version}, got {actual_version}")
+                return False
+                
+        except (IndexError, ValueError) as e:
+            self.log(f"Failed to parse buf version: {e}")
+            return False
+        
+        # Test basic buf functionality
+        if not self._test_buf_functionality(binary_path):
+            return False
+        
+        self.log(f"Buf validation passed for {binary_path}")
+        return True
+    
+    def _test_buf_functionality(self, binary_path: Path) -> bool:
+        """
+        Test buf functionality with a simple proto file.
+        
+        Args:
+            binary_path: Path to buf binary
+            
+        Returns:
+            True if functionality test passes, False otherwise
+        """
+        self.log("Testing buf functionality")
+        
+        # Create a temporary directory for the test
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            
+            # Create a simple test proto file
+            test_proto = temp_path / "test.proto"
+            test_proto.write_text("""
+syntax = "proto3";
+
+package test;
+
+message TestMessage {
+  string name = 1;
+  int32 id = 2;
+}
+
+service TestService {
+  rpc GetTest(TestMessage) returns (TestMessage);
+}
+""".strip())
+            
+            # Create a basic buf.yaml
+            buf_yaml = temp_path / "buf.yaml"
+            buf_yaml.write_text("""
+version: v1
+lint:
+  use:
+    - DEFAULT
+breaking:
+  use:
+    - FILE
+""".strip())
+            
+            # Test buf lint functionality
+            lint_command = [
+                str(binary_path),
+                "lint",
+                str(test_proto)
+            ]
+            
+            success, stdout, stderr = self.run_command_safely(lint_command)
+            if not success:
+                self.log(f"Failed to run buf lint: {stderr}")
+                return False
+            
+            # Test buf format functionality
+            format_command = [
+                str(binary_path),
+                "format",
+                str(test_proto),
+                "--diff"
+            ]
+            
+            success, stdout, stderr = self.run_command_safely(format_command)
+            # Note: buf format may return non-zero if formatting changes are needed
+            # We just check that it doesn't crash
+            if "error" in stderr.lower() and "fatal" in stderr.lower():
+                self.log(f"buf format failed with fatal error: {stderr}")
+                return False
+            
+            self.log("Buf functionality test passed")
+            return True
+
     def validate_tool(self, tool_path: str, tool_type: str, **kwargs) -> bool:
         """
-        Validate a tool (protoc or plugin) comprehensively.
+        Validate a tool (protoc, buf, or plugin) comprehensively.
         
         Args:
             tool_path: Path to the tool binary
-            tool_type: Type of tool ("protoc" or "plugin")
+            tool_type: Type of tool ("protoc", "buf", or "plugin")
             **kwargs: Additional validation parameters
             
         Returns:
@@ -426,6 +550,10 @@ message TestResponse {
             expected_version = kwargs.get("expected_version")
             return self.validate_protoc_version(tool_path_obj, expected_version)
         
+        elif tool_type == "buf":
+            expected_version = kwargs.get("expected_version")
+            return self.validate_buf_version(tool_path_obj, expected_version)
+        
         elif tool_type == "plugin":
             plugin_name = kwargs.get("plugin_name", "unknown")
             return self.validate_plugin_functionality(tool_path_obj, plugin_name)
@@ -439,7 +567,7 @@ def main():
     """Main entry point for tool validation script."""
     parser = argparse.ArgumentParser(description="Validate protoc tools")
     parser.add_argument("--tool-path", required=True, help="Path to tool binary")
-    parser.add_argument("--tool-type", required=True, choices=["protoc", "plugin"], help="Type of tool")
+    parser.add_argument("--tool-type", required=True, choices=["protoc", "buf", "plugin"], help="Type of tool")
     parser.add_argument("--expected-checksum", help="Expected SHA256 checksum")
     parser.add_argument("--expected-version", help="Expected version (for protoc)")
     parser.add_argument("--plugin-name", help="Plugin name (for plugins)")

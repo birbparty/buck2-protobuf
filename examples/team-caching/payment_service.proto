@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package platform.payment.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "google/type/money.proto";
+
+option go_package = "platform/payment/v1;paymentv1";
+
+// Payment service for processing payments and managing payment methods
+service PaymentService {
+  // Process a payment
+  rpc ProcessPayment(ProcessPaymentRequest) returns (ProcessPaymentResponse) {
+    option (google.api.http) = {
+      post: "/v1/payments"
+      body: "*"
+    };
+  }
+  
+  // Get payment by ID
+  rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse) {
+    option (google.api.http) = {
+      get: "/v1/payments/{payment_id}"
+    };
+  }
+  
+  // Refund a payment
+  rpc RefundPayment(RefundPaymentRequest) returns (RefundPaymentResponse) {
+    option (google.api.http) = {
+      post: "/v1/payments/{payment_id}/refund"
+      body: "*"
+    };
+  }
+}
+
+// Payment information
+message Payment {
+  string payment_id = 1;
+  string user_id = 2;
+  string order_id = 3;
+  google.type.Money amount = 4;
+  PaymentStatus status = 5;
+  string payment_method_id = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+// Payment status enumeration
+enum PaymentStatus {
+  PAYMENT_STATUS_UNSPECIFIED = 0;
+  PAYMENT_STATUS_PENDING = 1;
+  PAYMENT_STATUS_COMPLETED = 2;
+  PAYMENT_STATUS_FAILED = 3;
+  PAYMENT_STATUS_REFUNDED = 4;
+}
+
+// Request messages
+message ProcessPaymentRequest {
+  string user_id = 1;
+  string order_id = 2;
+  google.type.Money amount = 3;
+  string payment_method_id = 4;
+}
+
+message ProcessPaymentResponse {
+  Payment payment = 1;
+}
+
+message GetPaymentRequest {
+  string payment_id = 1;
+}
+
+message GetPaymentResponse {
+  Payment payment = 1;
+}
+
+message RefundPaymentRequest {
+  string payment_id = 1;
+  google.type.Money amount = 2;
+  string reason = 3;
+}
+
+message RefundPaymentResponse {
+  Payment payment = 1;
+}

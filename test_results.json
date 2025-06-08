@@ -1,0 +1,87 @@
+{
+  "total_tests": 5,
+  "passed": 2,
+  "failed": 3,
+  "test_details": {
+    "plugin_availability": {
+      "buf-validate-proto": {
+        "available": false,
+        "error": "Both ORAS and HTTP failed for plugin buf-validate-proto 1.0.4 universal: Unsupported plugin: buf-validate-proto. Available plugins: ['protoc-gen-go', 'protoc-gen-grpc-go', 'protoc-gen-grpc-python']",
+        "version": "1.0.4"
+      },
+      "protovalidate-go": {
+        "available": false,
+        "error": "Both ORAS and HTTP failed for plugin protovalidate-go 0.6.3 universal: Unsupported plugin: protovalidate-go. Available plugins: ['protoc-gen-go', 'protoc-gen-grpc-go', 'protoc-gen-grpc-python']",
+        "version": "0.6.3"
+      },
+      "protovalidate-python": {
+        "available": false,
+        "error": "'binary_path'",
+        "version": "0.7.1"
+      },
+      "protovalidate-js": {
+        "available": false,
+        "error": "'binary_path'",
+        "version": "0.6.1"
+      }
+    },
+    "validation_schema": {
+      "available": false,
+      "error": "Both ORAS and HTTP failed for plugin buf-validate-proto 1.0.4 universal: Unsupported plugin: buf-validate-proto. Available plugins: ['protoc-gen-go', 'protoc-gen-grpc-go', 'protoc-gen-grpc-python']"
+    },
+    "runtime_libraries": {
+      "go": {
+        "available": false,
+        "error": "Both ORAS and HTTP failed for plugin protovalidate-go 0.6.3 universal: Unsupported plugin: protovalidate-go. Available plugins: ['protoc-gen-go', 'protoc-gen-grpc-go', 'protoc-gen-grpc-python']",
+        "version": "0.6.3"
+      },
+      "python": {
+        "available": false,
+        "error": "'binary_path'",
+        "version": "0.7.1"
+      },
+      "typescript": {
+        "available": false,
+        "error": "'binary_path'",
+        "version": "0.6.1"
+      }
+    },
+    "performance_metrics": {
+      "oras_hits": 0,
+      "oras_misses": 6,
+      "http_fallbacks": 6,
+      "cache_hits": 0,
+      "total_requests": 10,
+      "avg_oras_time": 0.0,
+      "avg_http_time": 0.0,
+      "bundle_downloads": 0,
+      "oras_hit_rate": 0.0,
+      "http_fallback_rate": 0.6,
+      "cache_hit_rate": 0.0
+    },
+    "buck2_integration": {
+      "success": true,
+      "languages": {
+        "go": {
+          "success": true,
+          "output_files": [
+            "test_validation.go"
+          ]
+        },
+        "python": {
+          "success": true,
+          "output_files": [
+            "test_validation.python"
+          ]
+        },
+        "typescript": {
+          "success": true,
+          "output_files": [
+            "test_validation.typescript"
+          ]
+        }
+      }
+    }
+  },
+  "success_rate": 0.4
+}

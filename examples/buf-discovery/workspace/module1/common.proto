@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package workspace.module1;
+
+// Common types for workspace module1
+message CommonData {
+  string id = 1;
+  string name = 2;
+  map<string, string> attributes = 3;
+}
+
+enum DataType {
+  DATA_TYPE_UNSPECIFIED = 0;
+  DATA_TYPE_STRING = 1;
+  DATA_TYPE_NUMBER = 2;
+  DATA_TYPE_BOOLEAN = 3;
+  DATA_TYPE_OBJECT = 4;
+}

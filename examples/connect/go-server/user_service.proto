@@ -1,0 +1,206 @@
+syntax = "proto3";
+
+package userservice.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/example/userservice/v1;userservicev1";
+
+// UserService provides user management functionality
+// with Connect framework for modern RPC development.
+service UserService {
+  // GetUser retrieves a user by ID
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  
+  // CreateUser creates a new user
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  
+  // UpdateUser updates an existing user
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  
+  // ListUsers lists users with pagination
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  
+  // DeleteUser deletes a user by ID
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  
+  // StreamUserEvents streams user events (server streaming)
+  rpc StreamUserEvents(StreamUserEventsRequest) returns (stream UserEvent);
+}
+
+// User represents a user in the system
+message User {
+  // User ID (UUID format)
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  
+  // User email (must be valid email)
+  string email = 2 [(buf.validate.field).string.email = true];
+  
+  // User display name
+  string name = 3 [(buf.validate.field).string = {
+    min_len: 1,
+    max_len: 100
+  }];
+  
+  // User creation timestamp
+  int64 created_at = 4;
+  
+  // User last update timestamp
+  int64 updated_at = 5;
+  
+  // User status
+  UserStatus status = 6;
+  
+  // User preferences
+  UserPreferences preferences = 7;
+}
+
+// UserStatus represents the status of a user
+enum UserStatus {
+  USER_STATUS_UNSPECIFIED = 0;
+  USER_STATUS_ACTIVE = 1;
+  USER_STATUS_INACTIVE = 2;
+  USER_STATUS_SUSPENDED = 3;
+}
+
+// UserPreferences represents user preferences
+message UserPreferences {
+  // Email notifications enabled
+  bool email_notifications = 1;
+  
+  // Push notifications enabled
+  bool push_notifications = 2;
+  
+  // Preferred language (ISO 639-1 code)
+  string language = 3 [(buf.validate.field).string = {
+    min_len: 2,
+    max_len: 2
+  }];
+  
+  // Timezone (IANA timezone identifier)
+  string timezone = 4;
+}
+
+// GetUser request
+message GetUserRequest {
+  // User ID to retrieve
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// GetUser response
+message GetUserResponse {
+  // Retrieved user
+  User user = 1;
+}
+
+// CreateUser request
+message CreateUserRequest {
+  // User email
+  string email = 1 [(buf.validate.field).string.email = true];
+  
+  // User name
+  string name = 2 [(buf.validate.field).string = {
+    min_len: 1,
+    max_len: 100
+  }];
+  
+  // User preferences (optional)
+  UserPreferences preferences = 3;
+}
+
+// CreateUser response
+message CreateUserResponse {
+  // Created user
+  User user = 1;
+}
+
+// UpdateUser request
+message UpdateUserRequest {
+  // User ID to update
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  
+  // Updated user data
+  User user = 2 [(buf.validate.field).required = true];
+}
+
+// UpdateUser response
+message UpdateUserResponse {
+  // Updated user
+  User user = 1;
+}
+
+// ListUsers request
+message ListUsersRequest {
+  // Page size (max 100)
+  int32 page_size = 1 [(buf.validate.field).int32 = {
+    gte: 1,
+    lte: 100
+  }];
+  
+  // Page token for pagination
+  string page_token = 2;
+  
+  // Filter by status (optional)
+  UserStatus status_filter = 3;
+}
+
+// ListUsers response
+message ListUsersResponse {
+  // List of users
+  repeated User users = 1;
+  
+  // Next page token
+  string next_page_token = 2;
+  
+  // Total count of users
+  int32 total_count = 3;
+}
+
+// DeleteUser request
+message DeleteUserRequest {
+  // User ID to delete
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// DeleteUser response
+message DeleteUserResponse {
+  // Success indicator
+  bool success = 1;
+}
+
+// StreamUserEvents request
+message StreamUserEventsRequest {
+  // Filter by user ID (optional)
+  string user_id = 1;
+  
+  // Filter by event types
+  repeated UserEventType event_types = 2;
+}
+
+// UserEvent represents a user event
+message UserEvent {
+  // Event ID
+  string id = 1;
+  
+  // User ID that triggered the event
+  string user_id = 2;
+  
+  // Event type
+  UserEventType type = 3;
+  
+  // Event timestamp
+  int64 timestamp = 4;
+  
+  // Event data (JSON)
+  string data = 5;
+}
+
+// UserEventType represents the type of user event
+enum UserEventType {
+  USER_EVENT_TYPE_UNSPECIFIED = 0;
+  USER_EVENT_TYPE_CREATED = 1;
+  USER_EVENT_TYPE_UPDATED = 2;
+  USER_EVENT_TYPE_DELETED = 3;
+  USER_EVENT_TYPE_LOGIN = 4;
+  USER_EVENT_TYPE_LOGOUT = 5;
+}

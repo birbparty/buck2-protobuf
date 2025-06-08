@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package discovery.custom;
+
+// Custom proto demonstrating explicit config file usage
+service CustomAPI {
+  // Execute custom operation
+  rpc ExecuteOperation(OperationRequest) returns (OperationResponse);
+  
+  // Batch operations
+  rpc BatchExecute(BatchRequest) returns (BatchResponse);
+}
+
+message OperationRequest {
+  string operation_id = 1;
+  map<string, string> parameters = 2;
+  OperationType type = 3;
+}
+
+message OperationResponse {
+  string result_id = 1;
+  OperationStatus status = 2;
+  string message = 3;
+  bytes data = 4;
+}
+
+message BatchRequest {
+  repeated OperationRequest operations = 1;
+  bool fail_fast = 2;
+}
+
+message BatchResponse {
+  repeated OperationResponse results = 1;
+  int32 success_count = 2;
+  int32 failure_count = 3;
+}
+
+enum OperationType {
+  OPERATION_TYPE_NONE = 0;  // Custom enum suffix for this config
+  OPERATION_TYPE_CREATE = 1;
+  OPERATION_TYPE_UPDATE = 2;
+  OPERATION_TYPE_DELETE = 3;
+  OPERATION_TYPE_QUERY = 4;
+}
+
+enum OperationStatus {
+  OPERATION_STATUS_NONE = 0;  // Custom enum suffix
+  OPERATION_STATUS_PENDING = 1;
+  OPERATION_STATUS_RUNNING = 2;
+  OPERATION_STATUS_COMPLETED = 3;
+  OPERATION_STATUS_FAILED = 4;
+}

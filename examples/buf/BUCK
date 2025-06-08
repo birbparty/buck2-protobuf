@@ -1,0 +1,125 @@
+"""Example demonstrating buf rules usage.
+
+This example shows how to use buf_lint, buf_format, and buf_breaking rules
+to validate and maintain protobuf files in a Buck2 build system.
+"""
+
+load("//rules:buf.bzl", "buf_lint", "buf_format", "buf_breaking")
+load("//rules:proto.bzl", "proto_library")
+
+# Proto library definition
+proto_library(
+    name = "user_proto",
+    srcs = [
+        "user.proto",
+        "user_types.proto",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Buf lint example with default configuration
+buf_lint(
+    name = "lint_user_proto",
+    srcs = [
+        "user.proto",
+        "user_types.proto",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Buf lint example with custom configuration
+buf_lint(
+    name = "lint_user_proto_strict",
+    srcs = [
+        "user.proto",
+        "user_types.proto",
+    ],
+    config = {
+        "use": ["DEFAULT", "COMMENTS", "FIELD_NAMES_LOWER_SNAKE_CASE"],
+        "except": ["PACKAGE_VERSION_SUFFIX"],
+        "enum_zero_value_suffix": "_UNSPECIFIED",
+        "rpc_allow_same_request_response": "false",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# Buf lint example with buf.yaml configuration file
+buf_lint(
+    name = "lint_user_proto_config",
+    srcs = [
+        "user.proto",
+        "user_types.proto",
+    ],
+    buf_yaml = "buf.yaml",
+    visibility = ["PUBLIC"],
+)
+
+# Buf format example - diff mode for CI validation
+buf_format(
+    name = "format_check_user_proto",
+    srcs = [
+        "user.proto",
+        "user_types.proto",
+    ],
+    diff = True,
+    visibility = ["PUBLIC"],
+)
+
+# Buf format example - generate formatted files
+buf_format(
+    name = "format_user_proto",
+    srcs = [
+        "user.proto",
+        "user_types.proto",
+    ],
+    write = True,
+    visibility = ["PUBLIC"],
+)
+
+# Buf breaking change detection example - against file baseline
+buf_breaking(
+    name = "breaking_check_user_proto",
+    srcs = [
+        "user.proto",
+        "user_types.proto",
+    ],
+    against = "baseline/user.proto",
+    config = {
+        "use": ["WIRE_COMPATIBLE"],
+        "except": ["FIELD_SAME_DEFAULT"],
+    },
+    visibility = ["PUBLIC"],
+)
+
+# Buf breaking change detection example - against git reference
+buf_breaking(
+    name = "breaking_check_user_proto_git",
+    srcs = [
+        "user.proto",
+        "user_types.proto",
+    ],
+    against = "git#branch=main",
+    visibility = ["PUBLIC"],
+)
+
+# Buf breaking change detection example - against Buck2 target
+buf_breaking(
+    name = "breaking_check_user_proto_target",
+    srcs = [
+        "user.proto", 
+        "user_types.proto",
+    ],
+    against = "//baseline:user_proto",
+    visibility = ["PUBLIC"],
+)
+
+# Combined example - proto library with automatic buf validation
+proto_library(
+    name = "validated_user_proto",
+    srcs = [
+        "user.proto",
+        "user_types.proto", 
+    ],
+    # Note: In future versions, we could add automatic buf validation here
+    visibility = ["PUBLIC"],
+)

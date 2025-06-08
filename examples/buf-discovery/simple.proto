@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package discovery.simple;
+
+// Simple service demonstrating automatic config discovery
+service SimpleService {
+  // Get simple data
+  rpc GetData(GetDataRequest) returns (GetDataResponse);
+  
+  // List all items
+  rpc ListItems(ListItemsRequest) returns (ListItemsResponse);
+}
+
+message GetDataRequest {
+  string id = 1;
+}
+
+message GetDataResponse {
+  SimpleData data = 1;
+}
+
+message ListItemsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message ListItemsResponse {
+  repeated SimpleData items = 1;
+  string next_page_token = 2;
+}
+
+message SimpleData {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  int64 created_timestamp = 4;
+}

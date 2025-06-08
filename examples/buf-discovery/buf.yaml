@@ -1,0 +1,34 @@
+version: v1
+name: buf.build/buck2-protobuf/discovery-examples
+deps:
+  - buf.build/googleapis/googleapis
+  - oras.birb.homes/common/types
+lint:
+  use:
+    - DEFAULT
+    - COMMENTS
+    - FIELD_NAMES_LOWER_SNAKE_CASE
+    - SERVICE_NAMES_PASCAL_CASE
+    - ENUM_NAMES_UPPER_SNAKE_CASE
+    - MESSAGE_NAMES_PASCAL_CASE
+    - PACKAGE_DEFINED
+    - PACKAGE_DIRECTORY_MATCH
+    - PACKAGE_SAME_DIRECTORY
+  except:
+    - PACKAGE_VERSION_SUFFIX
+  ignore:
+    - google/protobuf/timestamp.proto
+  enum_zero_value_suffix: _UNSPECIFIED
+  rpc_allow_same_request_response: false
+  rpc_allow_google_protobuf_empty_requests: true
+  rpc_allow_google_protobuf_empty_responses: true
+  service_suffix: Service
+breaking:
+  use:
+    - WIRE_COMPATIBLE
+    - WIRE_JSON_COMPATIBLE
+  except:
+    - EXTENSION_MESSAGE_NO_DELETE
+    - FIELD_SAME_DEFAULT
+  ignore:
+    - google/protobuf/timestamp.proto

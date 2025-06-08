@@ -1,0 +1,164 @@
+"""Basic buf linting examples demonstrating fundamental concepts.
+
+This BUCK file shows different approaches to buf linting:
+1. Basic linting with automatic config discovery
+2. Linting with explicit config file
+3. Linting with inline rule overrides
+4. Intentional demonstration of linting errors
+"""
+
+load("//rules:buf.bzl", "buf_lint", "buf_format")
+load("//rules:proto.bzl", "proto_library")
+
+# Proto library for the good example
+proto_library(
+    name = "user_service_proto",
+    srcs = ["user_service.proto"],
+    bsr_deps = [
+        "buf.build/googleapis/googleapis",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Proto library for the bad example (for demonstration)
+proto_library(
+    name = "bad_example_proto",
+    srcs = ["bad_example.proto"],
+    visibility = ["PUBLIC"],
+)
+
+# Example 1: Basic linting with automatic config discovery
+# This rule automatically discovers the buf.yaml file in the same directory
+buf_lint(
+    name = "lint_basic",
+    srcs = ["user_service.proto"],
+    # No explicit buf_yaml - will automatically discover buf.yaml
+    visibility = ["PUBLIC"],
+)
+
+# Example 2: Linting with explicit config file
+# Explicitly specify the configuration file to use
+buf_lint(
+    name = "lint_explicit_config",
+    srcs = ["user_service.proto"],
+    buf_yaml = "buf.yaml",
+    visibility = ["PUBLIC"],
+)
+
+# Example 3: Linting with inline rule overrides
+# Override specific rules while still using the base configuration
+buf_lint(
+    name = "lint_with_overrides",
+    srcs = ["user_service.proto"],
+    config = {
+        "use": ["DEFAULT", "COMMENTS", "FIELD_NAMES_LOWER_SNAKE_CASE"],
+        "except": ["PACKAGE_VERSION_SUFFIX"],
+        "enum_zero_value_suffix": "_UNKNOWN",
+        "service_suffix": "API",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# Example 4: Strict linting for production APIs
+# More stringent rules for production-ready APIs
+buf_lint(
+    name = "lint_strict",
+    srcs = ["user_service.proto"],
+    config = {
+        "use": [
+            "DEFAULT",
+            "COMMENTS",
+            "FIELD_NAMES_LOWER_SNAKE_CASE",
+            "SERVICE_NAMES_PASCAL_CASE",
+            "ENUM_NAMES_UPPER_SNAKE_CASE",
+            "MESSAGE_NAMES_PASCAL_CASE",
+            "RPC_NAMES_PASCAL_CASE",
+            "PACKAGE_DEFINED",
+            "PACKAGE_DIRECTORY_MATCH",
+            "PACKAGE_SAME_DIRECTORY",
+        ],
+        "except": ["PACKAGE_VERSION_SUFFIX"],
+        "enum_zero_value_suffix": "_UNSPECIFIED",
+        "rpc_allow_same_request_response": "false",
+        "rpc_allow_google_protobuf_empty_requests": "false", 
+        "rpc_allow_google_protobuf_empty_responses": "false",
+        "service_suffix": "Service",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# Example 5: Minimal linting (permissive)
+# Relaxed rules for development or legacy compatibility
+buf_lint(
+    name = "lint_minimal",
+    srcs = ["user_service.proto"],
+    config = {
+        "use": ["DEFAULT"],
+        "except": [
+            "PACKAGE_VERSION_SUFFIX",
+            "COMMENTS",
+            "FIELD_NAMES_LOWER_SNAKE_CASE",
+        ],
+    },
+    visibility = ["PUBLIC"],
+)
+
+# Example 6: Demonstrating linting errors (this will fail)
+# This target intentionally shows what happens with linting violations
+buf_lint(
+    name = "lint_bad_example",
+    srcs = ["bad_example.proto"],
+    config = {
+        "use": ["DEFAULT", "COMMENTS", "FIELD_NAMES_LOWER_SNAKE_CASE"],
+        # No exceptions - will show all violations
+    },
+    # This target is expected to fail - use it to see linting errors
+    visibility = ["PUBLIC"],
+)
+
+# Example 7: Format checking
+# Check if protobuf files are properly formatted
+buf_format(
+    name = "format_check",
+    srcs = ["user_service.proto"],
+    diff = True,  # Show differences instead of fixing
+    visibility = ["PUBLIC"],
+)
+
+# Example 8: Format auto-fix
+# Automatically format protobuf files
+buf_format(
+    name = "format_write",
+    srcs = ["user_service.proto"],
+    write = True,  # Write formatted files back
+    visibility = ["PUBLIC"],
+)
+
+# Example 9: Combined validation target
+# Run both linting and format checking together
+# This demonstrates how to create a comprehensive validation target
+proto_library(
+    name = "validated_user_service",
+    srcs = ["user_service.proto"],
+    bsr_deps = [
+        "buf.build/googleapis/googleapis",
+    ],
+    # In a real setup, you might add automatic validation here
+    visibility = ["PUBLIC"],
+)
+
+# Lint the validated service
+buf_lint(
+    name = "lint_validated_service",
+    srcs = [":validated_user_service"],
+    buf_yaml = "buf.yaml",
+    visibility = ["PUBLIC"],
+)
+
+# Format check the validated service
+buf_format(
+    name = "format_validated_service",
+    srcs = [":validated_user_service"],
+    diff = True,
+    visibility = ["PUBLIC"],
+)

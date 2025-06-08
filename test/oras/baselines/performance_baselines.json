@@ -1,0 +1,150 @@
+{
+  "version": "1.0.0",
+  "created": "2025-06-07T22:52:00Z",
+  "description": "Performance baselines for ORAS integration testing",
+  "targets": {
+    "artifact_pull_50mb": {
+      "target": 5.0,
+      "tolerance": 0.5,
+      "unit": "seconds",
+      "description": "Time to download 50MB artifact (cold cache)"
+    },
+    "cache_hit_lookup": {
+      "target": 0.1,
+      "tolerance": 0.05,
+      "unit": "seconds", 
+      "description": "Time for cache hit lookup"
+    },
+    "content_deduplication": {
+      "target": 0.6,
+      "tolerance": 0.05,
+      "unit": "ratio",
+      "description": "Content deduplication bandwidth savings ratio"
+    },
+    "protoc_cold_download": {
+      "target": 10.0,
+      "tolerance": 2.0,
+      "unit": "seconds",
+      "description": "Time to download protoc binary (cold cache)"
+    },
+    "protoc_cache_hit": {
+      "target": 0.1,
+      "tolerance": 0.05,
+      "unit": "seconds",
+      "description": "Time for protoc cache hit"
+    },
+    "plugin_individual_download": {
+      "target": 15.0,
+      "tolerance": 3.0,
+      "unit": "seconds",
+      "description": "Time to download individual plugin"
+    },
+    "plugin_bundle_download": {
+      "target": 30.0,
+      "tolerance": 5.0,
+      "unit": "seconds",
+      "description": "Time to download plugin bundle"
+    },
+    "concurrent_downloads": {
+      "target": 60.0,
+      "tolerance": 10.0,
+      "unit": "seconds",
+      "description": "Time for concurrent download operations"
+    },
+    "cache_scaling_avg": {
+      "target": 0.1,
+      "tolerance": 0.05,
+      "unit": "seconds",
+      "description": "Average cache lookup time with multiple items"
+    },
+    "cache_scaling_max": {
+      "target": 0.2,
+      "tolerance": 0.1,
+      "unit": "seconds",
+      "description": "Maximum cache lookup time with multiple items"
+    },
+    "memory_usage_mb": {
+      "target": 200.0,
+      "tolerance": 50.0,
+      "unit": "megabytes",
+      "description": "Maximum memory usage during operations"
+    },
+    "memory_increase_mb": {
+      "target": 50.0,
+      "tolerance": 20.0,
+      "unit": "megabytes",
+      "description": "Memory increase during operations"
+    },
+    "bandwidth_medium_mbps": {
+      "target": 10.0,
+      "tolerance": 5.0,
+      "unit": "mbps",
+      "description": "Bandwidth utilization for medium artifacts"
+    },
+    "bandwidth_large_mbps": {
+      "target": 50.0,
+      "tolerance": 20.0,
+      "unit": "mbps",
+      "description": "Bandwidth utilization for large artifacts"
+    },
+    "sequential_bundles": {
+      "target": 90.0,
+      "tolerance": 15.0,
+      "unit": "seconds",
+      "description": "Time for sequential bundle downloads"
+    },
+    "parallel_bundles": {
+      "target": 60.0,
+      "tolerance": 10.0,
+      "unit": "seconds",
+      "description": "Time for parallel bundle downloads"
+    },
+    "deduplication_time_savings": {
+      "target": 0.8,
+      "tolerance": 0.1,
+      "unit": "ratio",
+      "description": "Time savings from content deduplication"
+    }
+  },
+  "regression_thresholds": {
+    "critical": 0.5,
+    "warning": 0.2,
+    "notice": 0.1
+  },
+  "platform_adjustments": {
+    "darwin-arm64": {
+      "multiplier": 0.8,
+      "description": "Apple Silicon performance adjustment"
+    },
+    "darwin-x86_64": {
+      "multiplier": 1.0,
+      "description": "Intel Mac baseline"
+    },
+    "linux-x86_64": {
+      "multiplier": 0.9,
+      "description": "Linux x86_64 performance"
+    },
+    "linux-aarch64": {
+      "multiplier": 1.1,
+      "description": "ARM64 Linux adjustment"
+    },
+    "windows-x86_64": {
+      "multiplier": 1.2,
+      "description": "Windows performance adjustment"
+    }
+  },
+  "environment_factors": {
+    "ci": {
+      "multiplier": 2.0,
+      "description": "CI environment is typically slower"
+    },
+    "docker": {
+      "multiplier": 1.5,
+      "description": "Docker overhead adjustment"
+    },
+    "network_limited": {
+      "multiplier": 3.0,
+      "description": "Limited network bandwidth environment"
+    }
+  }
+}

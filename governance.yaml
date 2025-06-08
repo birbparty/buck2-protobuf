@@ -1,0 +1,135 @@
+# Schema Governance Configuration for Buck2 Protobuf
+# This file defines policies for schema review, breaking change handling,
+# and team collaboration workflows.
+
+schema_governance:
+  # Review policies define approval requirements for different types of schemas
+  review_policies:
+    # Public API schemas require strict review
+    public_apis:
+      required_reviewers: ["@platform-team", "@api-team"]
+      approval_count: 2
+      auto_approve_minor: false
+      require_breaking_approval: true
+      review_checks: ["breaking_changes", "style_guide", "documentation"]
+      
+    # Internal APIs have more relaxed requirements
+    internal_apis:
+      required_reviewers: ["@team-leads"]
+      approval_count: 1
+      auto_approve_minor: true
+      require_breaking_approval: true
+      review_checks: ["breaking_changes", "style_guide"]
+      
+    # Experimental APIs allow more flexibility
+    experimental_apis:
+      required_reviewers: ["@team-leads"]
+      approval_count: 1
+      auto_approve_minor: true
+      require_breaking_approval: false
+      review_checks: ["style_guide"]
+      
+    # Default policy for unclassified schemas
+    default:
+      required_reviewers: ["@team-leads"]
+      approval_count: 1
+      auto_approve_minor: false
+      require_breaking_approval: true
+      review_checks: ["breaking_changes"]
+
+  # Breaking change policies define how to handle breaking changes
+  breaking_change_policies:
+    # Repository-specific policies
+    "buf.build/myorg/public-api": "require_approval"
+    "buf.build/myorg/internal-api": "warn"
+    "buf.build/myorg/experimental": "allow"
+    "oras.birb.homes/myorg/platform": "require_approval"
+    
+    # Default policy for unspecified repositories
+    default: "error"
+
+  # Notification settings for team communication
+  notification_settings:
+    # Teams to notify for various events
+    breaking_changes: ["@platform-team", "@api-consumers"]
+    major_releases: ["@all-engineers"]
+    policy_violations: ["@platform-team"]
+    review_requests: []  # Notify reviewers individually
+    
+    # Notification channels (for future integration)
+    channels:
+      slack: "#api-changes"
+      email: "api-team@company.com"
+
+  # Global settings that apply across all policies
+  global_settings:
+    # Require 2FA for sensitive operations
+    require_2fa: true
+    
+    # Automatically create audit trail for all changes
+    audit_all_changes: true
+    
+    # Default approval timeout (in hours)
+    approval_timeout: 168  # 1 week
+    
+    # Allow emergency override (with additional approvals)
+    allow_emergency_override: true
+    emergency_override_approvers: ["@platform-admin"]
+    
+    # Schema validation settings
+    enforce_style_guide: true
+    require_documentation: true
+    
+    # Performance settings
+    cache_breaking_change_results: true
+    cache_ttl_minutes: 60
+
+  # Team-specific overrides for customized governance
+  team_overrides:
+    # Platform team has special privileges
+    platform-team:
+      review_policy: "platform_override"
+      can_emergency_override: true
+      can_approve_own_changes: false
+      
+    # Security team has enhanced requirements
+    security-team:
+      review_policy: "security_enhanced"
+      require_security_review: true
+      additional_checks: ["security", "performance"]
+      
+    # Frontend team has different requirements
+    frontend-team:
+      review_policy: "frontend_focused"
+      auto_approve_ui_changes: true
+      require_backend_approval: true
+
+  # Custom policy definitions
+  custom_policies:
+    platform_override:
+      required_reviewers: ["@platform-admin"]
+      approval_count: 1
+      auto_approve_minor: true
+      require_breaking_approval: false
+      review_checks: ["breaking_changes", "security"]
+      
+    security_enhanced:
+      required_reviewers: ["@security-team", "@platform-team"]
+      approval_count: 2
+      auto_approve_minor: false
+      require_breaking_approval: true
+      review_checks: ["breaking_changes", "style_guide", "security", "performance"]
+      mandatory_security_scan: true
+      
+    frontend_focused:
+      required_reviewers: ["@frontend-leads", "@backend-team"]
+      approval_count: 1
+      auto_approve_minor: true
+      require_breaking_approval: true
+      review_checks: ["breaking_changes", "documentation"]
+
+# Additional configuration sections can be added for:
+# - Compliance requirements
+# - Integration settings  
+# - Monitoring and alerting
+# - Custom validation rules

@@ -1,0 +1,426 @@
+name: Registry Maintenance and Publishing
+
+on:
+  schedule:
+    # Weekly on Monday at 6 AM UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      tools:
+        description: 'Tools to publish (protoc,buf,all)'
+        default: 'all'
+        required: false
+      dry_run:
+        description: 'Perform dry run (true/false)'
+        default: 'false'
+        required: false
+      force_publish:
+        description: 'Force republish existing versions'
+        default: 'false'
+        required: false
+
+env:
+  PYTHON_VERSION: '3.11'
+  REGISTRY_CONFIG: 'registry.yaml'
+
+jobs:
+  health-check:
+    name: Registry Health Check
+    runs-on: ubuntu-latest
+    outputs:
+      registry_healthy: ${{ steps.health.outputs.healthy }}
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml requests
+          
+      - name: Perform health check
+        id: health
+        run: |
+          cd tools
+          python -m registry_manager --config ../${{ env.REGISTRY_CONFIG }} health > health_result.json
+          
+          # Check if registry is healthy
+          if python -c "import json; data=json.load(open('health_result.json')); exit(0 if data['status'] == 'healthy' else 1)"; then
+            echo "healthy=true" >> $GITHUB_OUTPUT
+          else
+            echo "healthy=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Output health results
+          echo "Registry Health Check Results:"
+          cat health_result.json
+          
+      - name: Upload health report
+        uses: actions/upload-artifact@v3
+        with:
+          name: health-report
+          path: tools/health_result.json
+
+  version-detection:
+    name: Detect New Tool Versions
+    runs-on: ubuntu-latest
+    needs: health-check
+    if: needs.health-check.outputs.registry_healthy == 'true'
+    outputs:
+      has_updates: ${{ steps.detect.outputs.has_updates }}
+      protoc_versions: ${{ steps.detect.outputs.protoc_versions }}
+      buf_versions: ${{ steps.detect.outputs.buf_versions }}
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml requests
+          
+      - name: Detect tool versions
+        id: detect
+        run: |
+          cd tools
+          
+          # Get latest versions for each tool
+          echo "Detecting protoc versions..."
+          python -m registry_manager --config ../${{ env.REGISTRY_CONFIG }} versions protoc > protoc_versions.txt
+          
+          echo "Detecting buf versions..."
+          python -m registry_manager --config ../${{ env.REGISTRY_CONFIG }} versions buf > buf_versions.txt
+          
+          # Check if we have any versions to process
+          if [ -s protoc_versions.txt ] || [ -s buf_versions.txt ]; then
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Output version lists (truncated for GitHub output limits)
+          echo "protoc_versions=$(head -5 protoc_versions.txt | tr '\n' ',')" >> $GITHUB_OUTPUT
+          echo "buf_versions=$(head -5 buf_versions.txt | tr '\n' ',')" >> $GITHUB_OUTPUT
+          
+          echo "Tool version detection completed"
+          
+      - name: Upload version lists
+        uses: actions/upload-artifact@v3
+        with:
+          name: version-lists
+          path: |
+            tools/protoc_versions.txt
+            tools/buf_versions.txt
+
+  publish-artifacts:
+    name: Publish Tool Artifacts
+    runs-on: ubuntu-latest
+    needs: [health-check, version-detection]
+    if: needs.health-check.outputs.registry_healthy == 'true' && (needs.version-detection.outputs.has_updates == 'true' || github.event.inputs.force_publish == 'true')
+    strategy:
+      matrix:
+        tool: [protoc, buf]
+      fail-fast: false
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl tar gzip zip unzip
+          
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml requests
+          
+      - name: Install ORAS CLI
+        run: |
+          # Install ORAS CLI for artifact operations
+          curl -LO "https://github.com/oras-project/oras/releases/download/v1.1.0/oras_1.1.0_linux_amd64.tar.gz"
+          mkdir -p /tmp/oras
+          tar -zxf oras_1.1.0_linux_amd64.tar.gz -C /tmp/oras
+          sudo mv /tmp/oras/oras /usr/local/bin/
+          oras version
+          
+      - name: Verify buck2-oras CLI
+        run: |
+          # Check if buck2-oras is available
+          if ! command -v buck2-oras &> /dev/null; then
+            echo "Warning: buck2-oras CLI not found. Using ORAS CLI directly."
+          else
+            buck2-oras --version
+          fi
+          
+      - name: Determine publishing parameters
+        id: params
+        run: |
+          # Set tool to publish
+          if [ "${{ github.event.inputs.tools }}" != "" ]; then
+            TOOLS="${{ github.event.inputs.tools }}"
+          else
+            TOOLS="${{ matrix.tool }}"
+          fi
+          
+          # Set dry run mode
+          if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+            DRY_RUN="--dry-run"
+          else
+            DRY_RUN=""
+          fi
+          
+          echo "tools=${TOOLS}" >> $GITHUB_OUTPUT
+          echo "dry_run=${DRY_RUN}" >> $GITHUB_OUTPUT
+          echo "Publishing ${TOOLS} with dry_run=${DRY_RUN}"
+          
+      - name: Publish ${{ matrix.tool }} artifacts
+        env:
+          TOOL_NAME: ${{ matrix.tool }}
+          DRY_RUN: ${{ steps.params.outputs.dry_run }}
+        run: |
+          cd tools
+          
+          # Run artifact publisher
+          echo "Publishing ${TOOL_NAME} artifacts..."
+          python -m artifact_publisher \
+            --config ../${{ env.REGISTRY_CONFIG }} \
+            --tool "${TOOL_NAME}" \
+            --parallel \
+            --versions 3 \
+            ${DRY_RUN} > publish_results_${TOOL_NAME}.json
+          
+          echo "Publishing results for ${TOOL_NAME}:"
+          cat publish_results_${TOOL_NAME}.json
+          
+      - name: Upload publishing results
+        uses: actions/upload-artifact@v3
+        with:
+          name: publish-results-${{ matrix.tool }}
+          path: tools/publish_results_${{ matrix.tool }}.json
+
+  verify-published:
+    name: Verify Published Artifacts
+    runs-on: ubuntu-latest
+    needs: [publish-artifacts]
+    if: always() && needs.publish-artifacts.result == 'success'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml requests
+          
+      - name: Install ORAS CLI
+        run: |
+          curl -LO "https://github.com/oras-project/oras/releases/download/v1.1.0/oras_1.1.0_linux_amd64.tar.gz"
+          mkdir -p /tmp/oras
+          tar -zxf oras_1.1.0_linux_amd64.tar.gz -C /tmp/oras
+          sudo mv /tmp/oras/oras /usr/local/bin/
+          
+      - name: Verify artifact accessibility
+        run: |
+          cd tools
+          
+          # Test artifact pulls using ORAS client
+          echo "Testing artifact accessibility..."
+          
+          # Test known working artifact first
+          python -m oras_client \
+            --registry oras.birb.homes \
+            --cache-dir /tmp/verify-cache \
+            pull oras.birb.homes/test/hello-world:latest
+          
+          echo "Artifact verification completed"
+          
+      - name: Generate verification report
+        run: |
+          cd tools
+          
+          # Generate comprehensive verification report
+          python -m registry_manager --config ../${{ env.REGISTRY_CONFIG }} health > verification_report.json
+          
+          echo "Verification Report:"
+          cat verification_report.json
+          
+      - name: Upload verification report
+        uses: actions/upload-artifact@v3
+        with:
+          name: verification-report
+          path: tools/verification_report.json
+
+  cleanup-cache:
+    name: Cache Cleanup
+    runs-on: ubuntu-latest
+    needs: [verify-published]
+    if: always()
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml requests
+          
+      - name: Cleanup old cache entries
+        run: |
+          cd tools
+          
+          # Clean up cache entries older than 7 days
+          python -m registry_manager \
+            --config ../${{ env.REGISTRY_CONFIG }} \
+            cleanup --older-than 7
+          
+          echo "Cache cleanup completed"
+
+  summary-report:
+    name: Generate Summary Report
+    runs-on: ubuntu-latest
+    needs: [health-check, version-detection, publish-artifacts, verify-published, cleanup-cache]
+    if: always()
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+          
+      - name: Generate summary report
+        run: |
+          echo "# Registry Maintenance Summary" > summary.md
+          echo "**Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> summary.md
+          echo "" >> summary.md
+          
+          # Health check status
+          echo "## Health Check" >> summary.md
+          if [ "${{ needs.health-check.outputs.registry_healthy }}" == "true" ]; then
+            echo "✅ Registry is healthy" >> summary.md
+          else
+            echo "❌ Registry health issues detected" >> summary.md
+          fi
+          echo "" >> summary.md
+          
+          # Version detection
+          echo "## Version Detection" >> summary.md
+          if [ "${{ needs.version-detection.outputs.has_updates }}" == "true" ]; then
+            echo "🆕 New versions detected" >> summary.md
+            echo "- Protoc versions: ${{ needs.version-detection.outputs.protoc_versions }}" >> summary.md
+            echo "- Buf versions: ${{ needs.version-detection.outputs.buf_versions }}" >> summary.md
+          else
+            echo "📅 No new versions found" >> summary.md
+          fi
+          echo "" >> summary.md
+          
+          # Publishing status
+          echo "## Publishing Results" >> summary.md
+          if [ "${{ needs.publish-artifacts.result }}" == "success" ]; then
+            echo "✅ Artifact publishing completed successfully" >> summary.md
+          elif [ "${{ needs.publish-artifacts.result }}" == "skipped" ]; then
+            echo "⏭️ Publishing skipped (no updates or dry run)" >> summary.md
+          else
+            echo "❌ Publishing failed or was cancelled" >> summary.md
+          fi
+          echo "" >> summary.md
+          
+          # Verification status
+          echo "## Verification" >> summary.md
+          if [ "${{ needs.verify-published.result }}" == "success" ]; then
+            echo "✅ Published artifacts verified successfully" >> summary.md
+          else
+            echo "⚠️ Verification step skipped or failed" >> summary.md
+          fi
+          echo "" >> summary.md
+          
+          # Add artifacts information if available
+          if [ -d "artifacts" ]; then
+            echo "## Detailed Reports" >> summary.md
+            echo "The following detailed reports are available as artifacts:" >> summary.md
+            find artifacts -name "*.json" -exec basename {} \; | sed 's/^/- /' >> summary.md
+          fi
+          
+          echo "Summary report generated"
+          cat summary.md
+          
+      - name: Upload summary report
+        uses: actions/upload-artifact@v3
+        with:
+          name: maintenance-summary
+          path: summary.md
+          
+      - name: Comment on workflow (if triggered manually)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "Registry maintenance workflow completed."
+          echo "Check the artifacts for detailed reports and results."
+
+  notify-on-failure:
+    name: Failure Notification
+    runs-on: ubuntu-latest
+    needs: [health-check, version-detection, publish-artifacts, verify-published]
+    if: failure()
+    
+    steps:
+      - name: Create failure notification
+        run: |
+          echo "Registry maintenance workflow failed!"
+          echo "Failed jobs:"
+          
+          if [ "${{ needs.health-check.result }}" == "failure" ]; then
+            echo "- Health check failed"
+          fi
+          
+          if [ "${{ needs.version-detection.result }}" == "failure" ]; then
+            echo "- Version detection failed"
+          fi
+          
+          if [ "${{ needs.publish-artifacts.result }}" == "failure" ]; then
+            echo "- Artifact publishing failed"
+          fi
+          
+          if [ "${{ needs.verify-published.result }}" == "failure" ]; then
+            echo "- Verification failed"
+          fi
+          
+          echo "Please check the workflow logs for details."
+          
+          # In a real environment, you might want to send notifications to:
+          # - Slack/Discord webhooks
+          # - Email
+          # - GitHub Issues
+          # - PagerDuty/monitoring systems

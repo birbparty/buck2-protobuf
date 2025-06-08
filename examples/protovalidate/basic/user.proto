@@ -1,0 +1,163 @@
+syntax = "proto3";
+
+package examples.protovalidate.basic;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/example/protovalidate/basic";
+
+// User message with comprehensive protovalidate constraints
+message User {
+  // User ID - must be a valid UUID
+  string id = 1 [(buf.validate.field).string = {
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+  }];
+  
+  // Email address - must be valid email format
+  string email = 2 [(buf.validate.field).string = {
+    pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+    min_len: 3,
+    max_len: 254
+  }];
+  
+  // Display name - required, 1-100 characters
+  string name = 3 [(buf.validate.field).string = {
+    min_len: 1,
+    max_len: 100
+  }];
+  
+  // Age - must be between 13 and 120
+  int32 age = 4 [(buf.validate.field).int32 = {
+    gte: 13,
+    lte: 120
+  }];
+  
+  // User type - must be one of the specified values
+  string user_type = 5 [(buf.validate.field).string = {
+    in: ["standard", "premium", "admin"]
+  }];
+  
+  // Profile picture URL - optional, but if provided must be valid HTTP(S) URL
+  string profile_url = 6 [(buf.validate.field).string = {
+    pattern: "^https?://[^\\s/$.?#].[^\\s]*$"
+  }];
+  
+  // Account balance - must be non-negative
+  double balance = 7 [(buf.validate.field).double = {
+    gte: 0.0
+  }];
+  
+  // Tags - optional list of tags, max 10 items, each tag 1-50 chars
+  repeated string tags = 8 [(buf.validate.field).repeated = {
+    max_items: 10,
+    items: {
+      string: {
+        min_len: 1,
+        max_len: 50
+      }
+    }
+  }];
+  
+  // Created timestamp - required
+  google.protobuf.Timestamp created_at = 9 [(buf.validate.field).message.required = true];
+  
+  // User preferences - optional nested message
+  UserPreferences preferences = 10;
+}
+
+// User preferences with validation
+message UserPreferences {
+  // Theme - must be one of the allowed values
+  string theme = 1 [(buf.validate.field).string = {
+    in: ["light", "dark", "auto"]
+  }];
+  
+  // Language code - ISO 639-1 format
+  string language = 2 [(buf.validate.field).string = {
+    pattern: "^[a-z]{2}$"
+  }];
+  
+  // Timezone - IANA timezone identifier
+  string timezone = 3 [(buf.validate.field).string = {
+    pattern: "^[A-Za-z_]+/[A-Za-z_]+$"
+  }];
+  
+  // Notification settings
+  NotificationSettings notifications = 4;
+}
+
+// Notification settings
+message NotificationSettings {
+  // Email notifications enabled
+  bool email_enabled = 1;
+  
+  // Push notifications enabled  
+  bool push_enabled = 2;
+  
+  // SMS notifications enabled
+  bool sms_enabled = 3;
+  
+  // Notification frequency - must be positive
+  int32 frequency_hours = 4 [(buf.validate.field).int32 = {
+    gte: 1,
+    lte: 168  // Max once per week
+  }];
+}
+
+// Account verification request
+message VerificationRequest {
+  string user_id = 1 [(buf.validate.field).string = {
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+  }];
+  
+  string verification_code = 2 [(buf.validate.field).string = {
+    pattern: "^[0-9]{6}$"  // 6-digit verification code
+  }];
+  
+  // Cross-field validation: code must not be expired
+  google.protobuf.Timestamp expires_at = 3 [(buf.validate.field).message.required = true];
+  
+  option (buf.validate.message).cel = {
+    id: "verification_not_expired",
+    message: "verification code must not be expired",
+    expression: "this.expires_at > now"
+  };
+}
+
+// Password change request with cross-field validation
+message PasswordChangeRequest {
+  string user_id = 1 [(buf.validate.field).string = {
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+  }];
+  
+  string old_password = 2 [(buf.validate.field).string = {
+    min_len: 8,
+    max_len: 128
+  }];
+  
+  string new_password = 3 [(buf.validate.field).string = {
+    min_len: 8,
+    max_len: 128,
+    pattern: "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]+$"
+  }];
+  
+  string confirm_password = 4 [(buf.validate.field).string = {
+    min_len: 8,
+    max_len: 128
+  }];
+  
+  // Cross-field validation: new password must match confirmation
+  option (buf.validate.message).cel = {
+    id: "password_confirmation",
+    message: "new password and confirmation must match",
+    expression: "this.new_password == this.confirm_password"
+  };
+  
+  // Cross-field validation: new password must be different from old
+  option (buf.validate.message).cel = {
+    id: "password_different",
+    message: "new password must be different from old password",
+    expression: "this.new_password != this.old_password"
+  };
+}

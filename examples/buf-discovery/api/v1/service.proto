@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package discovery.api.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Nested service demonstrating hierarchical config discovery
+// This proto will discover buf.yaml from the parent directory
+service NestedService {
+  // Search for items
+  rpc Search(SearchRequest) returns (SearchResponse);
+  
+  // Get recommendations
+  rpc GetRecommendations(RecommendationsRequest) returns (RecommendationsResponse);
+}
+
+message SearchRequest {
+  string query = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+  repeated string filters = 4;
+  SearchSort sort = 5;
+}
+
+message SearchResponse {
+  repeated SearchResult results = 1;
+  int32 total_count = 2;
+  bool has_more = 3;
+}
+
+message SearchResult {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  double relevance_score = 4;
+  google.protobuf.Timestamp last_updated = 5;
+}
+
+message RecommendationsRequest {
+  string user_id = 1;
+  int32 max_recommendations = 2;
+  RecommendationType type = 3;
+}
+
+message RecommendationsResponse {
+  repeated Recommendation recommendations = 1;
+}
+
+message Recommendation {
+  string item_id = 1;
+  string title = 2;
+  double confidence_score = 3;
+  string reason = 4;
+}
+
+enum SearchSort {
+  SEARCH_SORT_UNSPECIFIED = 0;
+  SEARCH_SORT_RELEVANCE = 1;
+  SEARCH_SORT_DATE_DESC = 2;
+  SEARCH_SORT_DATE_ASC = 3;
+  SEARCH_SORT_TITLE = 4;
+}
+
+enum RecommendationType {
+  RECOMMENDATION_TYPE_UNSPECIFIED = 0;
+  RECOMMENDATION_TYPE_SIMILAR_ITEMS = 1;
+  RECOMMENDATION_TYPE_POPULAR = 2;
+  RECOMMENDATION_TYPE_PERSONALIZED = 3;
+}

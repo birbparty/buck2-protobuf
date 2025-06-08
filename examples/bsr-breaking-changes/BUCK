@@ -1,0 +1,98 @@
+load("//rules:buf.bzl", "buf_breaking", "buf_lint")
+load("//rules:proto.bzl", "proto_library")
+
+# Example 1: Basic BSR baseline breaking change detection
+proto_library(
+    name = "user_api_v2_proto",
+    srcs = ["user_api_v2.proto"],
+    visibility = ["PUBLIC"],
+)
+
+buf_breaking(
+    name = "check_user_api_breaking",
+    srcs = [":user_api_v2_proto"],
+    against_repository = "buf.build/myorg/userapi",
+    against_tag = "v1.0.0",
+    breaking_policy = "warn",
+    visibility = ["PUBLIC"],
+)
+
+# Example 2: Team notifications with migration planning
+proto_library(
+    name = "platform_api_proto",
+    srcs = ["platform_api.proto"],
+    visibility = ["PUBLIC"],
+)
+
+buf_breaking(
+    name = "check_platform_breaking_with_teams",
+    srcs = [":platform_api_proto"],
+    against_repository = "oras.birb.homes/platform/core",
+    against_tag = "latest",
+    breaking_policy = "review",
+    notify_teams = ["@platform-team", "@api-consumers"],
+    generate_migration_plan = True,
+    slack_webhook = "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+    escalation_hours = [1, 6, 24],
+    review_required = True,
+    visibility = ["PUBLIC"],
+)
+
+# Example 3: Critical policy enforcement
+proto_library(
+    name = "critical_service_proto",
+    srcs = ["critical_service.proto"],
+    visibility = ["PUBLIC"],
+)
+
+buf_breaking(
+    name = "check_critical_service_breaking",
+    srcs = [":critical_service_proto"],
+    against_repository = "oras.birb.homes/critical/service",
+    breaking_policy = "error",  # Fail build on any breaking changes
+    notify_teams = ["@sre-team", "@platform-team"],
+    generate_migration_plan = True,
+    escalation_hours = [0.5, 2],  # Immediate escalation for critical services
+    review_required = True,
+    visibility = ["PUBLIC"],
+)
+
+# Example 4: Local baseline comparison (backward compatibility)
+buf_breaking(
+    name = "check_against_git_main",
+    srcs = [":user_api_v2_proto"],
+    against = "git#branch=main",
+    breaking_policy = "warn",
+    visibility = ["PUBLIC"],
+)
+
+# Example 5: Team coordination across multiple repositories
+proto_library(
+    name = "gateway_api_proto",
+    srcs = ["gateway_api.proto"],
+    visibility = ["PUBLIC"],
+)
+
+buf_breaking(
+    name = "check_gateway_coordination",
+    srcs = [":gateway_api_proto"],
+    against_repository = "oras.birb.homes/gateway/api",
+    breaking_policy = "review",
+    notify_teams = ["@gateway-team", "@frontend-team", "@mobile-team"],
+    generate_migration_plan = True,
+    slack_webhook = "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+    team_config_file = "team_config.yaml",
+    visibility = ["PUBLIC"],
+)
+
+# Lint checks to ensure quality
+buf_lint(
+    name = "lint_all_protos",
+    srcs = [
+        ":user_api_v2_proto",
+        ":platform_api_proto", 
+        ":critical_service_proto",
+        ":gateway_api_proto",
+    ],
+    visibility = ["PUBLIC"],
+)

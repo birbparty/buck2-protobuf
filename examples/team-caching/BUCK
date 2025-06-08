@@ -1,0 +1,157 @@
+"""
+Example demonstrating BSR team caching optimization.
+
+This example shows how to set up and use BSR team caching for a development team
+with shared dependencies and performance monitoring.
+"""
+
+load("//rules:bsr_team_cache.bzl", "setup_team_cache", "dependency_bundle", "cache_performance_monitor")
+load("//rules:proto.bzl", "proto_library")
+
+# Set up team cache for the platform team
+setup_team_cache(
+    name = "platform_team_cache",
+    team = "platform-team",
+    members = [
+        "alice@company.com",
+        "bob@company.com", 
+        "charlie@company.com",
+        "david@company.com",
+        "eve@company.com"
+    ],
+    cache_strategy = "aggressive",  # High-performance caching for busy team
+    bundle_dependencies = [
+        "buf.build/googleapis/googleapis:v1.0.0",
+        "buf.build/grpc/grpc:v1.5.0",
+        "buf.build/envoyproxy/envoy:v1.24.0",
+        "buf.build/istio/istio:v1.16.0"
+    ],
+    monitor_performance = True,
+)
+
+# Create specialized bundles for different use cases
+dependency_bundle(
+    name = "api_gateway_bundle",
+    bundle_name = "api-gateway-deps",
+    description = "Dependencies for API gateway services",
+    dependencies = [
+        "buf.build/googleapis/googleapis:v1.0.0",
+        "buf.build/grpc/grpc:v1.5.0",
+        "buf.build/envoyproxy/envoy:v1.24.0",
+        "buf.build/grpc-ecosystem/grpc-gateway:v2.15.0"
+    ],
+    team = "platform-team",
+    version = "v1.0.0",
+    auto_update = False,  # Manual control for stable deps
+)
+
+dependency_bundle(
+    name = "service_mesh_bundle", 
+    bundle_name = "service-mesh-deps",
+    description = "Service mesh dependencies for microservices",
+    dependencies = [
+        "buf.build/istio/istio:v1.16.0",
+        "buf.build/envoyproxy/envoy:v1.24.0",
+        "buf.build/open-telemetry/opentelemetry:v1.0.0"
+    ],
+    team = "platform-team",
+    version = "v1.1.0",
+    auto_update = True,  # Auto-update for service mesh
+)
+
+# Performance monitoring with custom thresholds
+cache_performance_monitor(
+    name = "team_cache_monitor",
+    team = "platform-team",
+    metrics = ["hit_rate", "download_time", "storage_usage", "build_improvement"],
+    reporting_frequency = "daily",
+    cache_hit_rate_threshold = 0.90,  # 90% hit rate target
+    build_time_regression_threshold = 0.05,  # 5% regression alert
+    dashboard_enabled = True,
+)
+
+# Example services using team caching
+
+# User service with common dependencies
+proto_library(
+    name = "user_service_proto",
+    srcs = ["user_service.proto"],
+    deps = [
+        "buf.build/googleapis/googleapis:v1.0.0",
+        "buf.build/grpc/grpc:v1.5.0"
+    ],
+    team = "platform-team",  # Enable team caching
+    visibility = ["//services/user:__pkg__"],
+)
+
+# Payment service using API gateway bundle
+proto_library(
+    name = "payment_service_proto", 
+    srcs = ["payment_service.proto"],
+    deps = [
+        ":api_gateway_bundle",  # Use the bundle
+        "buf.build/stripe/stripe:v1.0.0"  # Service-specific dependency
+    ],
+    team = "platform-team",
+    visibility = ["//services/payment:__pkg__"],
+)
+
+# Order service using service mesh bundle
+proto_library(
+    name = "order_service_proto",
+    srcs = ["order_service.proto"], 
+    deps = [
+        ":service_mesh_bundle",  # Use service mesh bundle
+        "buf.build/googleapis/googleapis:v1.0.0"
+    ],
+    team = "platform-team",
+    visibility = ["//services/order:__pkg__"],
+)
+
+# Cross-team collaboration example
+# Shared bundle accessible by other teams
+dependency_bundle(
+    name = "organization_common_bundle",
+    bundle_name = "org-common-apis",
+    description = "Common API dependencies shared across all teams",
+    dependencies = [
+        "buf.build/googleapis/googleapis:v1.0.0",
+        "buf.build/grpc/grpc:v1.5.0"
+    ],
+    team = "platform-team",  # Owned by platform team
+    version = "v2.0.0",
+    auto_update = False,  # Stable for cross-team use
+)
+
+# Example of team-specific cache configuration for different teams
+setup_team_cache(
+    name = "backend_team_cache",
+    team = "backend-team",
+    members = [
+        "backend-dev1@company.com",
+        "backend-dev2@company.com", 
+        "backend-dev3@company.com"
+    ],
+    cache_strategy = "balanced",  # Medium caching for moderate usage
+    bundle_dependencies = [
+        "buf.build/googleapis/googleapis:v1.0.0",
+        "buf.build/grpc/grpc:v1.5.0",
+        "buf.build/postgresql/postgresql:v1.0.0"
+    ],
+    monitor_performance = True,
+)
+
+setup_team_cache(
+    name = "frontend_team_cache", 
+    team = "frontend-team",
+    members = [
+        "frontend-dev1@company.com",
+        "frontend-dev2@company.com"
+    ],
+    cache_strategy = "conservative",  # Light caching for smaller team
+    bundle_dependencies = [
+        "buf.build/googleapis/googleapis:v1.0.0",
+        "buf.build/grpc-web/grpc-web:v1.3.0"
+    ],
+    monitor_performance = False,  # Simpler monitoring needs
+)

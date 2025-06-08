@@ -1,0 +1,131 @@
+syntax = "proto3";
+
+package myorg.userapi.v2;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/myorg/userapi/v2";
+
+// User service for managing user accounts
+// This version contains breaking changes from v1
+service UserService {
+  // Get user by ID
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  
+  // Create a new user
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  
+  // Update user - BREAKING: different signature from v1
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  
+  // Delete user - BREAKING: new method not in v1
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+}
+
+// User representation
+message User {
+  // User ID
+  string id = 1;
+  
+  // User name
+  string name = 2;
+  
+  // Email address - BREAKING: was 'email_address' in v1
+  string email = 3;
+  
+  // Phone number - BREAKING: removed from v1
+  // string phone = 4; // Commented out to show deletion
+  
+  // Account status - BREAKING: changed from enum to string
+  string status = 4;  // Was UserStatus enum in v1
+  
+  // Created timestamp
+  google.protobuf.Timestamp created_at = 5;
+  
+  // Updated timestamp  
+  google.protobuf.Timestamp updated_at = 6;
+  
+  // Profile data - BREAKING: new required field
+  UserProfile profile = 7;
+}
+
+// User profile - new message type
+message UserProfile {
+  string avatar_url = 1;
+  string bio = 2;
+  repeated string interests = 3;
+}
+
+// Request messages
+message GetUserRequest {
+  string id = 1;
+  
+  // Include profile - BREAKING: new field changes wire format
+  bool include_profile = 2;
+}
+
+message GetUserResponse {
+  User user = 1;
+  
+  // Metadata - BREAKING: changed field number
+  ResponseMetadata metadata = 3;  // Was field 2 in v1
+}
+
+message CreateUserRequest {
+  string name = 1;
+  string email = 2;
+  
+  // Profile - BREAKING: new required field
+  UserProfile profile = 3;
+}
+
+message CreateUserResponse {
+  User user = 1;
+  ResponseMetadata metadata = 2;
+}
+
+message UpdateUserRequest {
+  string id = 1;
+  
+  // BREAKING: changed from individual fields to oneof
+  oneof update_data {
+    string name = 2;
+    string email = 3;
+    UserProfile profile = 4;
+  }
+}
+
+message UpdateUserResponse {
+  User user = 1;
+  ResponseMetadata metadata = 2;
+}
+
+message DeleteUserRequest {
+  string id = 1;
+  
+  // Soft delete flag - BREAKING: new field affects behavior
+  bool soft_delete = 2;
+}
+
+message DeleteUserResponse {
+  bool success = 1;
+  ResponseMetadata metadata = 2;
+}
+
+// Response metadata
+message ResponseMetadata {
+  string request_id = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  
+  // Rate limit info - BREAKING: new fields change wire format
+  int32 rate_limit_remaining = 3;
+  google.protobuf.Timestamp rate_limit_reset = 4;
+}
+
+// BREAKING: Removed UserStatus enum that existed in v1
+// enum UserStatus {
+//   USER_STATUS_UNSPECIFIED = 0;
+//   USER_STATUS_ACTIVE = 1;
+//   USER_STATUS_INACTIVE = 2;
+//   USER_STATUS_SUSPENDED = 3;
+// }

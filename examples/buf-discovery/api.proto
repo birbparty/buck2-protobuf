@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package discovery.api;
+
+import "google/protobuf/timestamp.proto";
+
+// API service demonstrating rule parameter overrides
+service ApiService {
+  // Create a new resource
+  rpc CreateResource(CreateResourceRequest) returns (CreateResourceResponse);
+  
+  // Update an existing resource
+  rpc UpdateResource(UpdateResourceRequest) returns (UpdateResourceResponse);
+  
+  // Delete a resource
+  rpc DeleteResource(DeleteResourceRequest) returns (DeleteResourceResponse);
+  
+  // Get resource by ID
+  rpc GetResource(GetResourceRequest) returns (GetResourceResponse);
+}
+
+message CreateResourceRequest {
+  Resource resource = 1;
+}
+
+message CreateResourceResponse {
+  Resource resource = 1;
+}
+
+message UpdateResourceRequest {
+  string resource_id = 1;
+  Resource resource = 2;
+  // Update mask for partial updates
+  repeated string update_mask = 3;
+}
+
+message UpdateResourceResponse {
+  Resource resource = 1;
+}
+
+message DeleteResourceRequest {
+  string resource_id = 1;
+}
+
+message DeleteResourceResponse {
+  bool success = 1;
+}
+
+message GetResourceRequest {
+  string resource_id = 1;
+}
+
+message GetResourceResponse {
+  Resource resource = 1;
+}
+
+message Resource {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  ResourceStatus status = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  map<string, string> metadata = 7;
+}
+
+enum ResourceStatus {
+  RESOURCE_STATUS_UNSPECIFIED = 0;
+  RESOURCE_STATUS_ACTIVE = 1;
+  RESOURCE_STATUS_INACTIVE = 2;
+  RESOURCE_STATUS_PENDING = 3;
+  RESOURCE_STATUS_DELETED = 4;
+}

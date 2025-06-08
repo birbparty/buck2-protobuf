@@ -4,6 +4,8 @@ Download protoc plugins for protobuf Buck2 integration.
 
 This script handles downloading and caching protoc plugins for different
 languages, platforms, and versions with comprehensive security features.
+
+Enhanced with ORAS distribution support for improved performance and bandwidth efficiency.
 """
 
 import argparse
@@ -21,6 +23,13 @@ import urllib.error
 import zipfile
 from pathlib import Path
 from typing import Dict, Optional, Tuple, Any
+
+# Try to import ORAS plugin distributor for enhanced functionality
+try:
+    from oras_plugins import PluginOrasDistributor
+    ORAS_AVAILABLE = True
+except ImportError:
+    ORAS_AVAILABLE = False
 
 
 class PluginDownloader:
@@ -478,15 +487,112 @@ def detect_platform_string() -> str:
     return f"{os_name}-{arch}"
 
 
+def download_plugin_enhanced(plugin: str, version: str, platform: str = None, 
+                            cache_dir: str = None, registry: str = "oras.birb.homes", 
+                            verbose: bool = False, use_oras: bool = True) -> str:
+    """
+    Enhanced plugin download with ORAS support and HTTP fallback.
+    
+    This function provides the new unified interface that tries ORAS first
+    and falls back to HTTP downloads automatically.
+    
+    Args:
+        plugin: Plugin name (e.g., "protoc-gen-go")
+        version: Plugin version
+        platform: Target platform (auto-detected if None)
+        cache_dir: Cache directory (default: ~/.cache/buck2-protobuf)
+        registry: ORAS registry URL
+        verbose: Enable verbose logging
+        use_oras: Enable ORAS distribution (falls back to HTTP if unavailable)
+        
+    Returns:
+        Path to the plugin binary
+        
+    Raises:
+        ValueError: If plugin/version/platform not supported
+        RuntimeError: If both ORAS and HTTP fail
+    """
+    if platform is None:
+        platform = detect_platform_string()
+    
+    if cache_dir is None:
+        cache_dir = os.path.expanduser("~/.cache/buck2-protobuf")
+    
+    # Try ORAS distribution first if available and enabled
+    if use_oras and ORAS_AVAILABLE:
+        try:
+            distributor = PluginOrasDistributor(
+                registry=registry,
+                cache_dir=cache_dir,
+                verbose=verbose
+            )
+            return distributor.get_plugin(plugin, version, platform)
+        except Exception as e:
+            if verbose:
+                print(f"[enhanced-downloader] ORAS failed: {e}, falling back to HTTP", file=sys.stderr)
+    
+    # Fallback to traditional HTTP download
+    downloader = PluginDownloader(cache_dir, verbose=verbose)
+    return downloader.download_plugin(plugin, version, platform)
+
+
+def download_plugin_bundle(bundle_name: str, bundle_version: str = "latest",
+                          platform: str = None, cache_dir: str = None, 
+                          registry: str = "oras.birb.homes", verbose: bool = False) -> Dict[str, str]:
+    """
+    Download a plugin bundle (multiple plugins as a single operation).
+    
+    Args:
+        bundle_name: Bundle name (e.g., "go-development")
+        bundle_version: Bundle version
+        platform: Target platform (auto-detected if None)
+        cache_dir: Cache directory (default: ~/.cache/buck2-protobuf)
+        registry: ORAS registry URL
+        verbose: Enable verbose logging
+        
+    Returns:
+        Dictionary mapping plugin names to their binary paths
+        
+    Raises:
+        ValueError: If bundle not supported
+        RuntimeError: If bundle download fails
+    """
+    if not ORAS_AVAILABLE:
+        raise RuntimeError(
+            "Plugin bundles require ORAS support. "
+            "Please install the ORAS plugin distributor."
+        )
+    
+    if platform is None:
+        platform = detect_platform_string()
+    
+    if cache_dir is None:
+        cache_dir = os.path.expanduser("~/.cache/buck2-protobuf")
+    
+    distributor = PluginOrasDistributor(
+        registry=registry,
+        cache_dir=cache_dir,
+        verbose=verbose
+    )
+    
+    return distributor.get_bundle(bundle_name, bundle_version, platform)
+
+
 def main():
     """Main entry point for plugin download script."""
     parser = argparse.ArgumentParser(description="Download protoc plugins")
-    parser.add_argument("--plugin", required=True, help="Plugin name")
-    parser.add_argument("--version", required=True, help="Plugin version")
+    parser.add_argument("--plugin", help="Plugin name")
+    parser.add_argument("--version", help="Plugin version")
+    parser.add_argument("--bundle", help="Plugin bundle name")
+    parser.add_argument("--bundle-version", default="latest", help="Bundle version")
     parser.add_argument("--platform", help="Target platform (auto-detected if not specified)")
-    parser.add_argument("--cache-dir", required=True, help="Cache directory")
+    parser.add_argument("--cache-dir", help="Cache directory")
+    parser.add_argument("--registry", default="oras.birb.homes", help="ORAS registry URL")
     parser.add_argument("--checksum", help="Expected SHA256 checksum (for verification)")
+    parser.add_argument("--no-oras", action="store_true", help="Disable ORAS, use HTTP only")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
+    parser.add_argument("--list-plugins", action="store_true", help="List supported plugins")
+    parser.add_argument("--list-bundles", action="store_true", help="List supported bundles")
     
     args = parser.parse_args()
     
@@ -498,12 +604,83 @@ def main():
             if args.verbose:
                 print(f"Auto-detected platform: {platform}", file=sys.stderr)
         
-        # Create downloader and get binary
-        downloader = PluginDownloader(args.cache_dir, verbose=args.verbose)
-        binary_path = downloader.download_plugin(args.plugin, args.version, platform)
+        # Handle listing operations
+        if args.list_plugins:
+            if ORAS_AVAILABLE and not args.no_oras:
+                distributor = PluginOrasDistributor(
+                    registry=args.registry,
+                    cache_dir=args.cache_dir or os.path.expanduser("~/.cache/buck2-protobuf"),
+                    verbose=args.verbose
+                )
+                plugins = distributor.get_supported_plugins()
+                print("Supported plugins (ORAS enhanced):")
+                for plugin in plugins:
+                    versions = distributor.get_supported_versions(plugin)
+                    print(f"  {plugin}: {', '.join(versions)}")
+            else:
+                downloader = PluginDownloader(
+                    args.cache_dir or os.path.expanduser("~/.cache/buck2-protobuf"),
+                    verbose=args.verbose
+                )
+                plugins = list(downloader.plugin_config.keys())
+                print("Supported plugins (HTTP only):")
+                for plugin in plugins:
+                    versions = list(downloader.plugin_config[plugin].keys())
+                    print(f"  {plugin}: {', '.join(versions)}")
+            return
+        
+        if args.list_bundles:
+            if ORAS_AVAILABLE and not args.no_oras:
+                distributor = PluginOrasDistributor(
+                    registry=args.registry,
+                    cache_dir=args.cache_dir or os.path.expanduser("~/.cache/buck2-protobuf"),
+                    verbose=args.verbose
+                )
+                bundles = distributor.get_supported_bundles()
+                print("Supported bundles:")
+                for bundle in bundles:
+                    print(f"  {bundle}")
+            else:
+                print("Plugin bundles require ORAS support (use without --no-oras)")
+            return
+        
+        # Handle bundle download
+        if args.bundle:
+            plugin_paths = download_plugin_bundle(
+                bundle_name=args.bundle,
+                bundle_version=args.bundle_version,
+                platform=platform,
+                cache_dir=args.cache_dir,
+                registry=args.registry,
+                verbose=args.verbose
+            )
+            
+            # Output bundle results as JSON
+            print(json.dumps(plugin_paths, indent=2))
+            return
+        
+        # Handle individual plugin download
+        if not args.plugin or not args.version:
+            parser.print_help()
+            return
+        
+        # Download plugin using enhanced interface
+        binary_path = download_plugin_enhanced(
+            plugin=args.plugin,
+            version=args.version,
+            platform=platform,
+            cache_dir=args.cache_dir,
+            registry=args.registry,
+            verbose=args.verbose,
+            use_oras=not args.no_oras
+        )
         
         # Additional checksum validation if requested (for binary plugins only)
         if args.checksum:
+            downloader = PluginDownloader(
+                args.cache_dir or os.path.expanduser("~/.cache/buck2-protobuf"),
+                verbose=args.verbose
+            )
             if not downloader.validate_checksum(Path(binary_path), args.checksum):
                 print(f"ERROR: Checksum validation failed for {binary_path}", file=sys.stderr)
                 sys.exit(1)

@@ -1,0 +1,272 @@
+// Public User API - Demonstrates strict governance requirements
+// This API is subject to:
+// - Multi-team review (platform-team + api-team)
+// - 2 approvals required
+// - Breaking change approval required
+// - Full documentation requirements
+
+syntax = "proto3";
+
+package governance.public.user.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/myorg/apis/governance/public/user/v1;userv1";
+
+// User service provides public user management operations.
+// This service is part of the public API and requires strict governance.
+service UserService {
+  // Get user by ID
+  // Requires: read permissions
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  
+  // Create a new user
+  // Requires: write permissions
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  
+  // Update existing user
+  // Requires: write permissions  
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  
+  // Delete user (soft delete)
+  // Requires: admin permissions
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  
+  // List users with pagination
+  // Requires: read permissions
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+}
+
+// User represents a platform user with governance metadata
+message User {
+  // Unique user identifier
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  
+  // User email address (required for public API)
+  string email = 2 [(buf.validate.field).string.email = true];
+  
+  // Display name
+  string display_name = 3 [(buf.validate.field).string.min_len = 1];
+  
+  // User status
+  UserStatus status = 4;
+  
+  // Account creation timestamp
+  int64 created_at = 5;
+  
+  // Last update timestamp
+  int64 updated_at = 6;
+  
+  // User profile information
+  UserProfile profile = 7;
+  
+  // Team memberships (for governance)
+  repeated TeamMembership team_memberships = 8;
+  
+  // Governance metadata
+  GovernanceMetadata governance = 9;
+}
+
+// User status enumeration
+enum UserStatus {
+  USER_STATUS_UNSPECIFIED = 0;
+  USER_STATUS_ACTIVE = 1;
+  USER_STATUS_INACTIVE = 2;
+  USER_STATUS_SUSPENDED = 3;
+  USER_STATUS_DELETED = 4;  // Soft delete
+}
+
+// User profile information
+message UserProfile {
+  // First name
+  string first_name = 1 [(buf.validate.field).string.min_len = 1];
+  
+  // Last name  
+  string last_name = 2 [(buf.validate.field).string.min_len = 1];
+  
+  // Profile picture URL
+  string avatar_url = 3 [(buf.validate.field).string.uri = true];
+  
+  // User timezone
+  string timezone = 4;
+  
+  // Preferred language
+  string language = 5;
+}
+
+// Team membership for governance
+message TeamMembership {
+  // Team identifier
+  string team_id = 1 [(buf.validate.field).string.min_len = 1];
+  
+  // Team name
+  string team_name = 2;
+  
+  // User role in team
+  TeamRole role = 3;
+  
+  // Membership start date
+  int64 joined_at = 4;
+}
+
+// Team roles for governance
+enum TeamRole {
+  TEAM_ROLE_UNSPECIFIED = 0;
+  TEAM_ROLE_VIEWER = 1;
+  TEAM_ROLE_CONTRIBUTOR = 2;
+  TEAM_ROLE_MAINTAINER = 3;
+  TEAM_ROLE_ADMIN = 4;
+}
+
+// Governance metadata for audit and compliance
+message GovernanceMetadata {
+  // Schema version for breaking change tracking
+  string schema_version = 1;
+  
+  // Last review information
+  ReviewInfo last_review = 2;
+  
+  // Compliance tags
+  repeated string compliance_tags = 3;
+  
+  // Audit trail references
+  repeated string audit_references = 4;
+}
+
+// Review information for governance
+message ReviewInfo {
+  // Review ID
+  string review_id = 1;
+  
+  // Reviewers who approved
+  repeated string reviewers = 2;
+  
+  // Review completion timestamp
+  int64 reviewed_at = 3;
+  
+  // Review status
+  string status = 4;
+}
+
+// Request messages
+
+message GetUserRequest {
+  // User ID to retrieve
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  
+  // Include soft-deleted users
+  bool include_deleted = 2;
+}
+
+message CreateUserRequest {
+  // User data to create
+  User user = 1 [(buf.validate.field).required = true];
+  
+  // Governance context
+  string created_by = 2 [(buf.validate.field).string.min_len = 1];
+  
+  // Request ID for idempotency
+  string request_id = 3 [(buf.validate.field).string.uuid = true];
+}
+
+message UpdateUserRequest {
+  // User ID to update
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  
+  // Updated user data
+  User user = 2 [(buf.validate.field).required = true];
+  
+  // Update mask for partial updates
+  repeated string update_mask = 3;
+  
+  // Governance context
+  string updated_by = 4 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteUserRequest {
+  // User ID to delete
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  
+  // Governance context
+  string deleted_by = 2 [(buf.validate.field).string.min_len = 1];
+  
+  // Reason for deletion (required for audit)
+  string reason = 3 [(buf.validate.field).string.min_len = 10];
+}
+
+message ListUsersRequest {
+  // Page size for pagination
+  int32 page_size = 1 [(buf.validate.field).int32 = {gte: 1, lte: 100}];
+  
+  // Page token for pagination
+  string page_token = 2;
+  
+  // Filter by status
+  UserStatus status_filter = 3;
+  
+  // Filter by team membership
+  string team_filter = 4;
+  
+  // Include governance metadata
+  bool include_governance = 5;
+}
+
+// Response messages
+
+message GetUserResponse {
+  // Retrieved user
+  User user = 1;
+}
+
+message CreateUserResponse {
+  // Created user with generated fields
+  User user = 1;
+  
+  // Governance tracking ID
+  string governance_id = 2;
+}
+
+message UpdateUserResponse {
+  // Updated user
+  User user = 1;
+  
+  // Governance tracking ID
+  string governance_id = 2;
+}
+
+message DeleteUserResponse {
+  // Deletion confirmation
+  bool success = 1;
+  
+  // Governance tracking ID
+  string governance_id = 2;
+  
+  // Deletion timestamp
+  int64 deleted_at = 3;
+}
+
+message ListUsersResponse {
+  // List of users
+  repeated User users = 1;
+  
+  // Next page token
+  string next_page_token = 2;
+  
+  // Total count (if requested)
+  int32 total_count = 3;
+  
+  // Governance summary
+  GovernanceSummary governance_summary = 4;
+}
+
+// Governance summary for list operations
+message GovernanceSummary {
+  // Total users by status
+  map<string, int32> status_counts = 1;
+  
+  // Team distribution
+  map<string, int32> team_counts = 2;
+  
+  // Last governance review
+  int64 last_review_at = 3;
+}

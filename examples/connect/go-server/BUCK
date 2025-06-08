@@ -1,0 +1,67 @@
+load("//rules:proto.bzl", "proto_library")
+load("//rules:connect.bzl", "connect_go_library")
+load("//rules:protovalidate.bzl", "protovalidate_go_library")
+
+# Proto library with validation
+proto_library(
+    name = "user_service_proto",
+    srcs = ["user_service.proto"],
+    deps = [
+        "//schemas:buf_validate_proto",
+    ],
+)
+
+# Connect-Go code generation
+connect_go_library(
+    name = "user_service_connect",
+    proto = ":user_service_proto",
+    go_package = "github.com/example/userservice/v1",
+    grpc_compat = True,  # Enable gRPC compatibility
+)
+
+# Protovalidate integration
+protovalidate_go_library(
+    name = "user_service_validation",
+    proto = ":user_service_proto",
+    go_package = "github.com/example/userservice/v1",
+)
+
+# Complete Go library
+go_library(
+    name = "server",
+    srcs = [
+        "main.go",
+        "service.go",
+    ],
+    deps = [
+        ":user_service_connect",
+        ":user_service_validation",
+        "//third_party/go:connectrpc.com/connect",
+        "//third_party/go:github.com/google/uuid",
+        "//third_party/go:net/http",
+        "//third_party/go:log",
+    ],
+)
+
+# Server binary
+go_binary(
+    name = "user_service_server",
+    embed = [":server"],
+    main = "main.go",
+)
+
+# Tests
+go_test(
+    name = "test",
+    srcs = [
+        "service_test.go",
+    ],
+    deps = [
+        ":server",
+        ":user_service_connect",
+        "//third_party/go:connectrpc.com/connect",
+        "//third_party/go:github.com/stretchr/testify/assert",
+        "//third_party/go:github.com/stretchr/testify/require",
+        "//third_party/go:testing",
+    ],
+)

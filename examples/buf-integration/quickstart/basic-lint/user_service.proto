@@ -1,0 +1,207 @@
+syntax = "proto3";
+
+package examples.quickstart.user.v1;
+
+option go_package = "github.com/example/buf-integration/quickstart/user/v1;userv1";
+option java_package = "com.example.quickstart.user.v1";
+option java_multiple_files = true;
+option java_outer_classname = "UserServiceProto";
+
+import "google/protobuf/timestamp.proto";
+
+// UserService provides user management operations following buf best practices.
+// This service demonstrates proper API design patterns and linting compliance.
+service UserService {
+  // CreateUser creates a new user in the system.
+  // Returns the created user with assigned ID and timestamps.
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  
+  // GetUser retrieves a user by their unique identifier.
+  // Returns NOT_FOUND if the user doesn't exist.
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  
+  // UpdateUser updates an existing user's information.
+  // Uses field mask to specify which fields to update.
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  
+  // DeleteUser removes a user from the system.
+  // This is a soft delete operation.
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  
+  // ListUsers returns a paginated list of users.
+  // Supports filtering and sorting options.
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+}
+
+// User represents a user in the system.
+// All fields follow buf naming conventions and include proper documentation.
+message User {
+  // user_id is the unique identifier for the user.
+  string user_id = 1;
+  
+  // email is the user's email address (required for registration).
+  string email = 2;
+  
+  // display_name is the user's display name (can be changed).
+  string display_name = 3;
+  
+  // status indicates the current status of the user account.
+  UserStatus status = 4;
+  
+  // created_at is when the user was first created.
+  google.protobuf.Timestamp created_at = 5;
+  
+  // updated_at is when the user was last modified.
+  google.protobuf.Timestamp updated_at = 6;
+  
+  // profile contains additional user profile information.
+  UserProfile profile = 7;
+}
+
+// UserStatus represents the possible states of a user account.
+// Uses UPPER_SNAKE_CASE as required by buf linting rules.
+enum UserStatus {
+  // USER_STATUS_UNSPECIFIED is the default value (required by buf).
+  USER_STATUS_UNSPECIFIED = 0;
+  
+  // USER_STATUS_ACTIVE indicates an active user account.
+  USER_STATUS_ACTIVE = 1;
+  
+  // USER_STATUS_INACTIVE indicates a temporarily disabled account.
+  USER_STATUS_INACTIVE = 2;
+  
+  // USER_STATUS_SUSPENDED indicates a suspended account.
+  USER_STATUS_SUSPENDED = 3;
+  
+  // USER_STATUS_DELETED indicates a soft-deleted account.
+  USER_STATUS_DELETED = 4;
+}
+
+// UserProfile contains additional profile information for a user.
+// Demonstrates proper message structure and field documentation.
+message UserProfile {
+  // first_name is the user's first name.
+  string first_name = 1;
+  
+  // last_name is the user's last name.
+  string last_name = 2;
+  
+  // bio is an optional biography or description.
+  string bio = 3;
+  
+  // avatar_url is a URL to the user's avatar image.
+  string avatar_url = 4;
+  
+  // preferences contains user preference settings.
+  UserPreferences preferences = 5;
+}
+
+// UserPreferences contains user preference settings.
+// Shows proper nested message structure.
+message UserPreferences {
+  // email_notifications indicates if the user wants email notifications.
+  bool email_notifications = 1;
+  
+  // push_notifications indicates if the user wants push notifications.
+  bool push_notifications = 2;
+  
+  // language is the user's preferred language (ISO 639-1 code).
+  string language = 3;
+  
+  // timezone is the user's timezone (IANA timezone).
+  string timezone = 4;
+}
+
+// CreateUserRequest contains the data needed to create a new user.
+// Follows the pattern of having a dedicated request message.
+message CreateUserRequest {
+  // user contains the user data to create.
+  // The user_id field will be ignored and auto-generated.
+  User user = 1;
+}
+
+// CreateUserResponse contains the newly created user.
+// Always returns the complete created object.
+message CreateUserResponse {
+  // user is the created user with assigned ID and timestamps.
+  User user = 1;
+}
+
+// GetUserRequest contains the ID of the user to retrieve.
+// Simple request message with clear field documentation.
+message GetUserRequest {
+  // user_id is the unique identifier for the user to retrieve.
+  string user_id = 1;
+}
+
+// GetUserResponse contains the requested user.
+// Returns the complete user object if found.
+message GetUserResponse {
+  // user is the requested user.
+  User user = 1;
+}
+
+// UpdateUserRequest contains the user data to update.
+// Uses field mask pattern for partial updates.
+message UpdateUserRequest {
+  // user contains the user data to update.
+  User user = 1;
+  
+  // update_mask specifies which fields to update.
+  // If not provided, all fields will be updated.
+  google.protobuf.FieldMask update_mask = 2;
+}
+
+// UpdateUserResponse contains the updated user.
+// Always returns the complete updated object.
+message UpdateUserResponse {
+  // user is the updated user.
+  User user = 1;
+}
+
+// DeleteUserRequest contains the ID of the user to delete.
+// Simple deletion request with clear documentation.
+message DeleteUserRequest {
+  // user_id is the unique identifier for the user to delete.
+  string user_id = 1;
+}
+
+// DeleteUserResponse confirms the deletion operation.
+// Provides confirmation of successful deletion.
+message DeleteUserResponse {
+  // success indicates whether the deletion was successful.
+  bool success = 1;
+}
+
+// ListUsersRequest contains pagination and filtering parameters.
+// Demonstrates proper list operation patterns.
+message ListUsersRequest {
+  // page_size is the maximum number of users to return (max 100).
+  int32 page_size = 1;
+  
+  // page_token is the pagination token from a previous request.
+  string page_token = 2;
+  
+  // filter is an optional filter expression.
+  // Example: "status=ACTIVE AND email LIKE '@example.com'"
+  string filter = 3;
+  
+  // order_by specifies the sort order.
+  // Example: "created_at DESC" or "display_name ASC"
+  string order_by = 4;
+}
+
+// ListUsersResponse contains a page of users and pagination info.
+// Standard list response pattern with pagination support.
+message ListUsersResponse {
+  // users is the list of users for this page.
+  repeated User users = 1;
+  
+  // next_page_token is the token for the next page.
+  // Empty if this is the last page.
+  string next_page_token = 2;
+  
+  // total_size is the total number of users matching the filter.
+  // May be an estimate for performance reasons.
+  int32 total_size = 3;
+}

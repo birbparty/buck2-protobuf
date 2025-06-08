@@ -1,0 +1,173 @@
+syntax = "proto3";
+
+package examples.modern.validation.basic;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/buck2-protobuf/examples/modern/validation/basic";
+
+// User represents a user account with modern validation constraints
+message User {
+  // User ID must be a positive integer
+  int64 id = 1 [(buf.validate.field).int64.gt = 0];
+  
+  // Email must be a valid email format
+  string email = 2 [(buf.validate.field).string.email = true];
+  
+  // Username must be 3-30 characters, alphanumeric + underscore only
+  string username = 3 [(buf.validate.field).string = {
+    pattern: "^[a-zA-Z0-9_]{3,30}$",
+    min_len: 3,
+    max_len: 30
+  }];
+  
+  // Age must be between 13 and 120 (reasonable user age range)
+  int32 age = 4 [(buf.validate.field).int32 = {
+    gte: 13,
+    lte: 120
+  }];
+  
+  // Phone number in international format
+  string phone = 5 [(buf.validate.field).string = {
+    pattern: "^\\+[1-9]\\d{1,14}$",
+    description: "Phone number in international format (e.g., +1234567890)"
+  }];
+  
+  // Profile must not be empty when provided
+  UserProfile profile = 6 [(buf.validate.field).message.required = true];
+  
+  // Roles must have at least one role assigned
+  repeated UserRole roles = 7 [(buf.validate.field).repeated.min_items = 1];
+  
+  // Status must be one of the defined enum values
+  UserStatus status = 8 [(buf.validate.field).enum.defined_only = true];
+}
+
+// UserProfile contains additional user information with validation
+message UserProfile {
+  // Display name must be 1-100 characters when provided
+  string display_name = 1 [(buf.validate.field).string = {
+    min_len: 1,
+    max_len: 100,
+    ignore: IGNORE_IF_UNPOPULATED
+  }];
+  
+  // Bio can be up to 500 characters
+  string bio = 2 [(buf.validate.field).string.max_len = 500];
+  
+  // Website URL must be valid when provided
+  string website = 3 [(buf.validate.field).string = {
+    uri: true,
+    ignore: IGNORE_IF_UNPOPULATED
+  }];
+  
+  // Location string up to 100 characters
+  string location = 4 [(buf.validate.field).string.max_len = 100];
+  
+  // Avatar URL must be HTTPS when provided
+  string avatar_url = 5 [(buf.validate.field).string = {
+    pattern: "^https://.*",
+    ignore: IGNORE_IF_UNPOPULATED,
+    description: "Avatar URL must use HTTPS protocol"
+  }];
+}
+
+// UserRole represents user permissions
+enum UserRole {
+  USER_ROLE_UNSPECIFIED = 0;
+  USER_ROLE_USER = 1;
+  USER_ROLE_MODERATOR = 2;
+  USER_ROLE_ADMIN = 3;
+}
+
+// UserStatus represents account status
+enum UserStatus {
+  USER_STATUS_UNSPECIFIED = 0;
+  USER_STATUS_ACTIVE = 1;
+  USER_STATUS_INACTIVE = 2;
+  USER_STATUS_SUSPENDED = 3;
+  USER_STATUS_DELETED = 4;
+}
+
+// CreateUserRequest demonstrates request-level validation
+message CreateUserRequest {
+  // User data is required
+  User user = 1 [(buf.validate.field).message.required = true];
+  
+  // Password must meet security requirements
+  string password = 2 [(buf.validate.field).string = {
+    min_len: 8,
+    max_len: 128,
+    pattern: "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
+    description: "Password must contain at least 8 characters with uppercase, lowercase, number, and special character"
+  }];
+  
+  // Password confirmation must match (validated in application logic)
+  string password_confirm = 3 [(buf.validate.field).string.min_len = 1];
+  
+  // Terms acceptance is required
+  bool accept_terms = 4 [(buf.validate.field).bool.const = true];
+}
+
+// UpdateUserRequest demonstrates partial update validation
+message UpdateUserRequest {
+  // User ID is required for updates
+  int64 user_id = 1 [(buf.validate.field).int64.gt = 0];
+  
+  // Fields to update (all optional)
+  optional string email = 2 [(buf.validate.field).string.email = true];
+  optional string username = 3 [(buf.validate.field).string = {
+    pattern: "^[a-zA-Z0-9_]{3,30}$",
+    min_len: 3,
+    max_len: 30
+  }];
+  optional int32 age = 4 [(buf.validate.field).int32 = {
+    gte: 13,
+    lte: 120
+  }];
+  optional string phone = 5 [(buf.validate.field).string.pattern = "^\\+[1-9]\\d{1,14}$"];
+  optional UserProfile profile = 6;
+  repeated UserRole roles = 7 [(buf.validate.field).repeated.min_items = 1];
+  optional UserStatus status = 8 [(buf.validate.field).enum.defined_only = true];
+}
+
+// ValidationExample demonstrates various validation patterns
+message ValidationExample {
+  // String constraints
+  string required_string = 1 [(buf.validate.field).string.min_len = 1];
+  string optional_string = 2 [(buf.validate.field).string = {
+    max_len: 50,
+    ignore: IGNORE_IF_UNPOPULATED
+  }];
+  string pattern_string = 3 [(buf.validate.field).string.pattern = "^[A-Z]{2,3}$"];
+  
+  // Numeric constraints
+  int32 positive_int = 4 [(buf.validate.field).int32.gt = 0];
+  int32 range_int = 5 [(buf.validate.field).int32 = {gte: 1, lte: 100}];
+  double positive_double = 6 [(buf.validate.field).double.gt = 0.0];
+  
+  // Collection constraints
+  repeated string non_empty_list = 7 [(buf.validate.field).repeated.min_items = 1];
+  repeated string size_limited_list = 8 [(buf.validate.field).repeated = {
+    min_items: 1,
+    max_items: 10
+  }];
+  
+  // Map constraints
+  map<string, string> required_map = 9 [(buf.validate.field).map.min_pairs = 1];
+  
+  // Bytes constraints
+  bytes non_empty_bytes = 10 [(buf.validate.field).bytes.min_len = 1];
+  bytes size_limited_bytes = 11 [(buf.validate.field).bytes = {
+    min_len: 1,
+    max_len: 1024
+  }];
+  
+  // Duration constraints
+  google.protobuf.Duration positive_duration = 12 [(buf.validate.field).duration.gt = {}];
+  
+  // Timestamp constraints
+  google.protobuf.Timestamp future_timestamp = 13 [(buf.validate.field).timestamp.gt_now = true];
+}

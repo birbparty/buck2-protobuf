@@ -1,0 +1,191 @@
+syntax = "proto3";
+
+package company.backend.user;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "buf/validate/validate.proto";
+import "platform_types.proto";
+
+// User service managed by the backend team
+// This demonstrates backend team's read access to platform schemas
+
+service UserService {
+  // Create a new user
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  
+  // Get user by ID
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  
+  // Update user information
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  
+  // Delete a user
+  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
+  
+  // List users with pagination
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  
+  // Get user's team memberships
+  rpc GetUserTeams(GetUserTeamsRequest) returns (GetUserTeamsResponse);
+}
+
+message User {
+  // Uses platform metadata (read access to platform schemas)
+  company.platform.types.PlatformMetadata metadata = 1;
+  
+  // User information
+  string email = 2 [(buf.validate.field).string.email = true];
+  string username = 3 [(buf.validate.field).string.min_len = 3];
+  string display_name = 4;
+  
+  // User status
+  UserStatus status = 5;
+  
+  // Team memberships
+  repeated TeamMembership team_memberships = 6;
+  
+  // User preferences
+  UserPreferences preferences = 7;
+  
+  // Last login time
+  google.protobuf.Timestamp last_login_at = 8;
+}
+
+enum UserStatus {
+  USER_STATUS_UNSPECIFIED = 0;
+  USER_STATUS_ACTIVE = 1;
+  USER_STATUS_INACTIVE = 2;
+  USER_STATUS_SUSPENDED = 3;
+  USER_STATUS_PENDING_VERIFICATION = 4;
+}
+
+message TeamMembership {
+  // Team identifier
+  string team_id = 1;
+  
+  // Team name
+  string team_name = 2;
+  
+  // User's role in the team
+  TeamRole role = 3;
+  
+  // When the user joined the team
+  google.protobuf.Timestamp joined_at = 4;
+  
+  // Access level (uses platform types)
+  company.platform.types.AccessLevel access_level = 5;
+}
+
+enum TeamRole {
+  TEAM_ROLE_UNSPECIFIED = 0;
+  TEAM_ROLE_MEMBER = 1;
+  TEAM_ROLE_LEAD = 2;
+  TEAM_ROLE_ADMIN = 3;
+}
+
+message UserPreferences {
+  // Notification preferences
+  NotificationPreferences notifications = 1;
+  
+  // UI preferences
+  string preferred_language = 2;
+  string timezone = 3;
+  
+  // Team-related preferences
+  bool auto_accept_team_invites = 4;
+}
+
+message NotificationPreferences {
+  bool email_notifications = 1;
+  bool push_notifications = 2;
+  bool team_activity_notifications = 3;
+  bool permission_change_notifications = 4;
+}
+
+// Request/Response messages
+message CreateUserRequest {
+  string email = 1 [(buf.validate.field).string.email = true];
+  string username = 2 [(buf.validate.field).string.min_len = 3];
+  string display_name = 3;
+  UserPreferences preferences = 4;
+  
+  // Team to initially assign user to
+  string initial_team = 5;
+  TeamRole initial_role = 6;
+}
+
+message CreateUserResponse {
+  User user = 1;
+  
+  // Audit trail (uses platform types)
+  company.platform.types.AuditInfo audit_info = 2;
+}
+
+message GetUserRequest {
+  string user_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+
+message UpdateUserRequest {
+  string user_id = 1 [(buf.validate.field).string.uuid = true];
+  User user = 2;
+  
+  // Fields to update (field mask would be better in real implementation)
+  repeated string update_fields = 3;
+}
+
+message UpdateUserResponse {
+  User user = 1;
+  company.platform.types.AuditInfo audit_info = 2;
+}
+
+message DeleteUserRequest {
+  string user_id = 1 [(buf.validate.field).string.uuid = true];
+  
+  // Reason for deletion
+  string reason = 2;
+}
+
+message ListUsersRequest {
+  // Pagination
+  int32 page_size = 1 [(buf.validate.field).int32 = {gte: 1, lte: 100}];
+  string page_token = 2;
+  
+  // Filtering
+  UserStatus status_filter = 3;
+  string team_filter = 4;
+  
+  // Sorting
+  string order_by = 5;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+message GetUserTeamsRequest {
+  string user_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetUserTeamsResponse {
+  repeated TeamMembership team_memberships = 1;
+  
+  // Additional team details
+  repeated TeamDetail team_details = 2;
+}
+
+message TeamDetail {
+  string team_id = 1;
+  string team_name = 2;
+  string description = 3;
+  int32 member_count = 4;
+  
+  // Team metadata (uses platform types)
+  company.platform.types.PlatformMetadata metadata = 5;
+}

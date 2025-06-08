@@ -1,0 +1,82 @@
+load("//rules:bsr.bzl", "bsr_repository", "enhanced_proto_library")
+
+# Configure private BSR repositories with team-based access control
+bsr_repository(
+    name = "myorg_platform_schemas",
+    repository = "buf.build/myorg/platform-schemas",
+    auth_method = "service_account",
+    teams = [
+        "@platform-team:admin",
+        "@backend-team:read",
+        "@frontend-team:read"
+    ],
+    access_level = "read",
+    service_account_file = "//config:bsr_service_account.json",
+    visibility = ["//..."],
+)
+
+bsr_repository(
+    name = "myorg_internal_apis",
+    repository = "buf.build/myorg/internal-apis", 
+    auth_method = "service_account",
+    teams = [
+        "@platform-team:admin",
+        "@backend-team:write",
+        "@security-team:read"
+    ],
+    access_level = "read",
+    service_account_file = "//config:bsr_service_account.json",
+    visibility = ["//..."],
+)
+
+# Example service using both private and public BSR dependencies
+enhanced_proto_library(
+    name = "user_service_proto",
+    srcs = ["user_service.proto"],
+    bsr_deps = [
+        # Private repository dependencies
+        "@myorg_platform_schemas//common:types",
+        "@myorg_internal_apis//auth:v1",
+        
+        # Public repository dependencies
+        "buf.build/googleapis/googleapis",
+        "buf.build/grpc-ecosystem/grpc-gateway:v2.0.0",
+        "buf.build/envoyproxy/protoc-gen-validate:v0.10.1",
+    ],
+    bsr_repositories = {
+        "@myorg_platform_schemas": ":myorg_platform_schemas",
+        "@myorg_internal_apis": ":myorg_internal_apis",
+    },
+    visibility = ["//visibility:public"],
+)
+
+# Example with mixed access levels
+enhanced_proto_library(
+    name = "admin_service_proto", 
+    srcs = ["admin_service.proto"],
+    bsr_deps = [
+        # This requires admin access to platform schemas
+        "@myorg_platform_schemas//admin:management",
+        "@myorg_internal_apis//admin:v1",
+        
+        # Public dependencies
+        "buf.build/googleapis/googleapis",
+    ],
+    bsr_repositories = {
+        "@myorg_platform_schemas": ":myorg_platform_schemas",
+        "@myorg_internal_apis": ":myorg_internal_apis",
+    },
+    visibility = ["//services/admin:__pkg__"],
+)
+
+# Example service that only uses public dependencies
+load("//rules:proto.bzl", "proto_library")
+
+proto_library(
+    name = "public_api_proto",
+    srcs = ["public_api.proto"],
+    deps = [
+        # Only public BSR dependencies - no authentication needed
+    ],
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,296 @@
+syntax = "proto3";
+
+package company.platform.gateway;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "buf/validate/validate.proto";
+import "platform_types.proto";
+import "user_service.proto";
+
+// Gateway service that demonstrates cross-team collaboration
+// Platform team manages this service but depends on backend team's user service
+
+service GatewayService {
+  // Health check endpoint
+  rpc Health(google.protobuf.Empty) returns (HealthResponse);
+  
+  // Authentication and authorization
+  rpc Authenticate(AuthenticateRequest) returns (AuthenticateResponse);
+  rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);
+  
+  // User management proxy (delegates to user service)
+  rpc GetUserInfo(GetUserInfoRequest) returns (GetUserInfoResponse);
+  
+  // Team-aware request routing
+  rpc RouteRequest(RouteRequestRequest) returns (RouteRequestResponse);
+  
+  // Cross-team audit logging
+  rpc LogAuditEvent(LogAuditEventRequest) returns (google.protobuf.Empty);
+}
+
+message HealthResponse {
+  HealthStatus status = 1;
+  string message = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  
+  // Service dependencies health
+  repeated ServiceHealth dependencies = 4;
+}
+
+enum HealthStatus {
+  HEALTH_STATUS_UNSPECIFIED = 0;
+  HEALTH_STATUS_HEALTHY = 1;
+  HEALTH_STATUS_DEGRADED = 2;
+  HEALTH_STATUS_UNHEALTHY = 3;
+}
+
+message ServiceHealth {
+  string service_name = 1;
+  HealthStatus status = 2;
+  string version = 3;
+  repeated string teams_responsible = 4;
+}
+
+// Authentication messages
+message AuthenticateRequest {
+  oneof credential {
+    TokenCredential token = 1;
+    ApiKeyCredential api_key = 2;
+    ServiceAccountCredential service_account = 3;
+  }
+  
+  // Request context
+  RequestContext context = 4;
+}
+
+message TokenCredential {
+  string token = 1;
+  string token_type = 2; // "Bearer", "JWT", etc.
+}
+
+message ApiKeyCredential {
+  string api_key = 1;
+  string key_id = 2;
+}
+
+message ServiceAccountCredential {
+  string service_account_id = 1;
+  string signed_jwt = 2;
+}
+
+message RequestContext {
+  string request_id = 1;
+  string client_ip = 2;
+  string user_agent = 3;
+  string source_team = 4;
+  
+  // Platform metadata
+  company.platform.types.PlatformMetadata metadata = 5;
+}
+
+message AuthenticateResponse {
+  bool authenticated = 1;
+  
+  // User information (from backend team's user service)
+  company.backend.user.User user = 2;
+  
+  // Authentication details
+  AuthenticationDetails auth_details = 3;
+  
+  // Error information if authentication failed
+  company.platform.types.PlatformError error = 4;
+}
+
+message AuthenticationDetails {
+  string auth_method = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  repeated string scopes = 3;
+  
+  // Team-based context
+  repeated TeamContext team_contexts = 4;
+}
+
+message TeamContext {
+  string team = 1;
+  company.platform.types.AccessLevel access_level = 2;
+  repeated string permissions = 3;
+}
+
+// Authorization messages
+message AuthorizeRequest {
+  // User context (from authentication)
+  company.backend.user.User user = 1;
+  
+  // Requested action
+  AuthorizationAction action = 2;
+  
+  // Resource being accessed
+  ResourceReference resource = 3;
+  
+  // Request context
+  RequestContext context = 4;
+}
+
+message AuthorizationAction {
+  string verb = 1; // "get", "create", "update", "delete", etc.
+  string resource_type = 2; // "user", "team", "repository", etc.
+  string scope = 3; // "read", "write", "admin"
+}
+
+message ResourceReference {
+  string resource_type = 1;
+  string resource_id = 2;
+  string owning_team = 3;
+  
+  // Platform metadata for the resource
+  company.platform.types.PlatformMetadata metadata = 4;
+}
+
+message AuthorizeResponse {
+  bool authorized = 1;
+  string reason = 2;
+  
+  // Effective permissions
+  repeated string granted_permissions = 3;
+  
+  // Team-based authorization context
+  repeated TeamAuthorizationContext team_contexts = 4;
+  
+  // Error if authorization failed
+  company.platform.types.PlatformError error = 5;
+}
+
+message TeamAuthorizationContext {
+  string team = 1;
+  bool team_member = 2;
+  company.platform.types.AccessLevel effective_access_level = 3;
+  repeated string team_permissions = 4;
+}
+
+// User info proxy messages
+message GetUserInfoRequest {
+  string user_id = 1 [(buf.validate.field).string.uuid = true];
+  
+  // Include team information
+  bool include_teams = 2;
+  
+  // Request context for auditing
+  RequestContext context = 3;
+}
+
+message GetUserInfoResponse {
+  // User information from backend team's service
+  company.backend.user.User user = 1;
+  
+  // Additional platform context
+  UserPlatformContext platform_context = 2;
+  
+  // Error if retrieval failed
+  company.platform.types.PlatformError error = 3;
+}
+
+message UserPlatformContext {
+  // Last authentication time
+  google.protobuf.Timestamp last_auth_at = 1;
+  
+  // Active sessions
+  repeated SessionInfo active_sessions = 2;
+  
+  // Recent team activity
+  repeated TeamActivity recent_team_activity = 3;
+}
+
+message SessionInfo {
+  string session_id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp last_active_at = 3;
+  string client_info = 4;
+}
+
+message TeamActivity {
+  string team = 1;
+  string activity_type = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  string description = 4;
+}
+
+// Request routing messages
+message RouteRequestRequest {
+  // Target service
+  string service_name = 1;
+  string service_version = 2;
+  
+  // Request details
+  string method = 3;
+  string path = 4;
+  map<string, string> headers = 5;
+  
+  // Team-based routing context
+  string requesting_team = 6;
+  string target_team = 7;
+  
+  // Platform context
+  RequestContext context = 8;
+}
+
+message RouteRequestResponse {
+  // Routing decision
+  bool route_allowed = 1;
+  string target_endpoint = 2;
+  
+  // Additional headers to add
+  map<string, string> additional_headers = 3;
+  
+  // Team-based routing info
+  TeamRoutingInfo routing_info = 4;
+  
+  // Error if routing failed
+  company.platform.types.PlatformError error = 5;
+}
+
+message TeamRoutingInfo {
+  string source_team = 1;
+  string target_team = 2;
+  bool cross_team_request = 3;
+  repeated string required_permissions = 4;
+  string routing_policy = 5;
+}
+
+// Audit logging messages
+message LogAuditEventRequest {
+  // Event information
+  AuditEvent event = 1;
+  
+  // Context
+  RequestContext context = 2;
+}
+
+message AuditEvent {
+  // Uses platform audit info
+  company.platform.types.AuditInfo audit_info = 1;
+  
+  // Event details
+  string event_type = 2;
+  string resource_type = 3;
+  string resource_id = 4;
+  
+  // Team context
+  string source_team = 5;
+  string target_team = 6;
+  
+  // Event data
+  map<string, string> event_data = 7;
+  
+  // Result
+  EventResult result = 8;
+}
+
+message EventResult {
+  bool success = 1;
+  string result_code = 2;
+  string message = 3;
+  
+  // Error details if failed
+  company.platform.types.PlatformError error = 4;
+}

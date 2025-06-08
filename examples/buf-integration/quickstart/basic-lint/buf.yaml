@@ -1,0 +1,33 @@
+version: v1
+name: buf.build/examples/buf-integration-quickstart
+deps:
+  - buf.build/googleapis/googleapis
+lint:
+  use:
+    - DEFAULT
+    - COMMENTS
+    - FIELD_NAMES_LOWER_SNAKE_CASE
+    - SERVICE_NAMES_PASCAL_CASE
+    - ENUM_NAMES_UPPER_SNAKE_CASE
+    - MESSAGE_NAMES_PASCAL_CASE
+    - PACKAGE_DEFINED
+    - PACKAGE_DIRECTORY_MATCH
+    - PACKAGE_SAME_DIRECTORY
+    - RPC_NAMES_PASCAL_CASE
+  except:
+    - PACKAGE_VERSION_SUFFIX  # Allow packages without version suffix for examples
+  ignore:
+    - bad_example.proto  # Ignore the intentionally bad example
+  enum_zero_value_suffix: _UNSPECIFIED
+  rpc_allow_same_request_response: false
+  rpc_allow_google_protobuf_empty_requests: false
+  rpc_allow_google_protobuf_empty_responses: false
+  service_suffix: Service
+breaking:
+  use:
+    - WIRE_COMPATIBLE
+    - WIRE_JSON_COMPATIBLE
+  except:
+    - FIELD_SAME_DEFAULT
+  ignore:
+    - bad_example.proto

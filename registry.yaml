@@ -1,0 +1,93 @@
+# Registry Infrastructure Configuration
+# buck2-protobuf ORAS Registry Settings
+
+# Primary registry configuration
+primary_registry:
+  url: "oras.birb.homes"
+  namespace: "buck2-protobuf"
+  auth_required: false
+  
+# Future registry options (currently disabled)
+backup_registries: []
+  # - url: "ghcr.io"
+  #   namespace: "buck2-protobuf"
+  #   auth_required: true
+  #   auth_method: "github_token"
+
+# Repository structure configuration
+repositories:
+  tools:
+    path: "tools"
+    description: "Core protobuf tools (protoc, buf, oras)"
+    auto_publish: true
+    retention_days: 365
+    
+  plugins:
+    path: "plugins"
+    description: "Protocol buffer plugins for various languages"
+    auto_publish: true
+    retention_days: 180
+    
+  bundles:
+    path: "bundles"
+    description: "Curated tool bundles for specific workflows"
+    auto_publish: false
+    retention_days: 90
+
+# Publishing configuration
+publishing:
+  auto_publish: true
+  schedule: "0 6 * * 1"  # Weekly Monday 6 AM UTC
+  parallel_uploads: 4
+  retry_attempts: 3
+  timeout_seconds: 600
+  
+  # Tool version monitoring
+  tool_sources:
+    protoc:
+      github_repo: "protocolbuffers/protobuf"
+      release_pattern: "v*"
+      platforms: ["linux-x86_64", "linux-aarch64", "darwin-x86_64", "darwin-arm64", "windows-x86_64"]
+      
+    buf:
+      github_repo: "bufbuild/buf"
+      release_pattern: "v*"
+      platforms: ["linux-x86_64", "linux-aarch64", "darwin-x86_64", "darwin-arm64", "windows-x86_64"]
+
+# Security configuration
+security:
+  verify_signatures: true
+  verify_checksums: true
+  scan_vulnerabilities: false  # Disabled for now
+  allowed_sources:
+    - "github.com"
+    - "releases.hashicorp.com"
+    - "go.dev"
+  
+  # Content verification
+  checksum_algorithms: ["sha256", "sha512"]
+  signature_verification: false  # No signing infrastructure yet
+
+# Monitoring and maintenance
+monitoring:
+  health_check_interval: 300  # 5 minutes
+  metrics_retention_days: 30
+  alert_on_failure: true
+  performance_targets:
+    pull_timeout_ms: 5000
+    cache_hit_target_pct: 85
+    availability_target_pct: 99.9
+
+# Cache configuration
+cache:
+  local_cache_dir: "/tmp/buck2-protobuf-cache"
+  max_cache_size_gb: 10
+  cleanup_on_startup: false
+  cleanup_older_than_days: 7
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "json"
+  audit_enabled: true
+  audit_retention_days: 90

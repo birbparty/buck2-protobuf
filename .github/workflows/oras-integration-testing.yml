@@ -1,0 +1,479 @@
+name: ORAS Integration Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'tools/oras_*.py'
+      - 'tools/registry_*.py'
+      - 'tools/artifact_*.py'
+      - 'test/oras/**'
+      - '.github/workflows/oras-integration-testing.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'tools/oras_*.py'
+      - 'tools/registry_*.py'
+      - 'tools/artifact_*.py'
+      - 'test/oras/**'
+  schedule:
+    # Run daily at 6 AM UTC to catch regressions
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of tests to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - unit
+          - integration
+          - performance
+          - security
+          - failure-scenarios
+      real_registry:
+        description: 'Test against real oras.birb.homes registry'
+        required: false
+        default: false
+        type: boolean
+      platform_filter:
+        description: 'Platform to test (leave empty for all)'
+        required: false
+        default: ''
+        type: string
+
+env:
+  PYTHONPATH: ${{ github.workspace }}
+  ORAS_REGISTRY: oras.birb.homes
+  COVERAGE_TARGET: 95.0
+
+jobs:
+  environment-validation:
+    name: Validate Test Environment
+    runs-on: ubuntu-latest
+    outputs:
+      should_run_tests: ${{ steps.validation.outputs.valid }}
+      python_version: ${{ steps.validation.outputs.python_version }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov pytest-xdist requests pyyaml
+        
+    - name: Validate environment
+      id: validation
+      run: |
+        cd test/oras
+        python -c "
+        import sys
+        sys.path.insert(0, '../../')
+        from utils.test_helpers import validate_oras_environment
+        import json
+        
+        result = validate_oras_environment()
+        print('Environment validation result:')
+        print(json.dumps(result, indent=2))
+        
+        # Set outputs
+        print(f'valid={str(result[\"overall\"][\"valid\"]).lower()}')
+        print(f'python_version={result[\"python_version\"][\"actual\"]}')
+        
+        with open('$GITHUB_OUTPUT', 'a') as f:
+            f.write(f'valid={str(result[\"overall\"][\"valid\"]).lower()}\n')
+            f.write(f'python_version={result[\"python_version\"][\"actual\"]}\n')
+        "
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ${{ matrix.os }}
+    needs: environment-validation
+    if: needs.environment-validation.outputs.should_run_tests == 'true'
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ['3.8', '3.9', '3.10', '3.11']
+        exclude:
+          # Reduce matrix size for efficiency
+          - os: macos-latest
+            python-version: '3.8'
+          - os: windows-latest
+            python-version: '3.8'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov pytest-xdist requests pyyaml psutil
+    
+    - name: Run unit tests with coverage
+      run: |
+        python -m pytest test/oras/ \
+          --cov=tools \
+          --cov-report=xml \
+          --cov-report=term-missing \
+          --cov-fail-under=${{ env.COVERAGE_TARGET }} \
+          -v \
+          -m "not real_registry and not slow and not benchmark" \
+          --maxfail=5
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      if: matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest'
+      with:
+        file: ./coverage.xml
+        flags: oras-unit-tests
+        name: ORAS Unit Tests Coverage
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: environment-validation
+    if: needs.environment-validation.outputs.should_run_tests == 'true'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov pytest-timeout requests pyyaml psutil
+    
+    - name: Run integration tests
+      run: |
+        python -m pytest test/oras/test_integration.py \
+          --cov=tools \
+          --cov-report=xml \
+          --cov-append \
+          -v \
+          -m "not real_registry and not slow" \
+          --timeout=300 \
+          --maxfail=3
+    
+    - name: Run real registry tests (if enabled)
+      if: github.event.inputs.real_registry == 'true' || github.event_name == 'schedule'
+      run: |
+        python -m pytest test/oras/test_integration.py \
+          --real-registry \
+          -v \
+          -m "real_registry" \
+          --timeout=600 \
+          --maxfail=1
+      continue-on-error: true  # Real registry tests might fail due to network issues
+
+  performance-tests:
+    name: Performance & Benchmark Tests
+    runs-on: ubuntu-latest
+    needs: environment-validation
+    if: needs.environment-validation.outputs.should_run_tests == 'true'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-benchmark requests pyyaml psutil
+    
+    - name: Run performance tests
+      run: |
+        python -m pytest test/oras/test_performance.py \
+          --benchmark \
+          -v \
+          -m "benchmark" \
+          --timeout=600 \
+          --tb=short
+    
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-results-${{ github.run_id }}
+        path: test/oras/baselines/
+        retention-days: 30
+
+  security-tests:
+    name: Security & Vulnerability Tests
+    runs-on: ubuntu-latest
+    needs: environment-validation
+    if: needs.environment-validation.outputs.should_run_tests == 'true'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest bandit safety requests pyyaml
+    
+    - name: Run security tests
+      run: |
+        python -m pytest test/oras/test_security.py \
+          -v \
+          -m "security" \
+          --tb=short
+    
+    - name: Run bandit security scan
+      run: |
+        bandit -r tools/ -f json -o bandit-report.json || true
+        bandit -r tools/ -f txt
+      continue-on-error: true
+    
+    - name: Run safety check
+      run: |
+        safety check --json --output safety-report.json || true
+        safety check
+      continue-on-error: true
+    
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-reports-${{ github.run_id }}
+        path: |
+          bandit-report.json
+          safety-report.json
+        retention-days: 30
+
+  failure-scenario-tests:
+    name: Failure Scenario Tests
+    runs-on: ubuntu-latest
+    needs: environment-validation
+    if: needs.environment-validation.outputs.should_run_tests == 'true'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest requests pyyaml psutil
+    
+    - name: Run failure scenario tests
+      run: |
+        python -m pytest test/oras/test_failure_scenarios.py \
+          -v \
+          -m "failure_scenario" \
+          --timeout=300 \
+          --tb=short
+
+  cross-platform-tests:
+    name: Cross-Platform Compatibility
+    runs-on: ${{ matrix.os }}
+    needs: environment-validation
+    if: needs.environment-validation.outputs.should_run_tests == 'true'
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux-x86_64
+          - os: macos-latest
+            platform: darwin-arm64
+          - os: windows-latest
+            platform: windows-x86_64
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest requests pyyaml
+    
+    - name: Run platform-specific tests
+      env:
+        TEST_PLATFORM: ${{ matrix.platform }}
+      run: |
+        python -m pytest test/oras/ \
+          --platform=${{ matrix.platform }} \
+          -v \
+          -k "platform" \
+          --tb=short
+
+  coverage-report:
+    name: Generate Coverage Report
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    if: always() && needs.environment-validation.outputs.should_run_tests == 'true'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov requests pyyaml coverage
+    
+    - name: Run comprehensive coverage
+      run: |
+        python -m pytest test/oras/ \
+          --cov=tools \
+          --cov-report=html \
+          --cov-report=xml \
+          --cov-report=term-missing \
+          -v \
+          -m "not real_registry and not slow and not benchmark" \
+          --maxfail=10
+    
+    - name: Upload coverage HTML report
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report-${{ github.run_id }}
+        path: htmlcov/
+        retention-days: 30
+    
+    - name: Coverage validation
+      run: |
+        python -c "
+        import xml.etree.ElementTree as ET
+        
+        tree = ET.parse('coverage.xml')
+        root = tree.getroot()
+        
+        total_coverage = float(root.attrib.get('line-rate', 0)) * 100
+        target_coverage = float('${{ env.COVERAGE_TARGET }}')
+        
+        print(f'Total coverage: {total_coverage:.1f}%')
+        print(f'Target coverage: {target_coverage:.1f}%')
+        
+        if total_coverage < target_coverage:
+            print(f'❌ Coverage {total_coverage:.1f}% is below target {target_coverage:.1f}%')
+            exit(1)
+        else:
+            print(f'✅ Coverage {total_coverage:.1f}% meets target {target_coverage:.1f}%')
+        "
+
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, performance-tests, security-tests, failure-scenario-tests, cross-platform-tests, coverage-report]
+    if: always()
+    
+    steps:
+    - name: Generate test summary
+      run: |
+        echo "# ORAS Integration Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Unit Tests
+        if [ "${{ needs.unit-tests.result }}" == "success" ]; then
+          echo "✅ Unit Tests: PASSED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Unit Tests: FAILED" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        # Integration Tests
+        if [ "${{ needs.integration-tests.result }}" == "success" ]; then
+          echo "✅ Integration Tests: PASSED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Integration Tests: FAILED" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        # Performance Tests
+        if [ "${{ needs.performance-tests.result }}" == "success" ]; then
+          echo "✅ Performance Tests: PASSED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Performance Tests: FAILED" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        # Security Tests
+        if [ "${{ needs.security-tests.result }}" == "success" ]; then
+          echo "✅ Security Tests: PASSED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Security Tests: FAILED" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        # Failure Scenario Tests
+        if [ "${{ needs.failure-scenario-tests.result }}" == "success" ]; then
+          echo "✅ Failure Scenario Tests: PASSED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Failure Scenario Tests: FAILED" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        # Cross Platform Tests
+        if [ "${{ needs.cross-platform-tests.result }}" == "success" ]; then
+          echo "✅ Cross-Platform Tests: PASSED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Cross-Platform Tests: FAILED" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        # Coverage Report
+        if [ "${{ needs.coverage-report.result }}" == "success" ]; then
+          echo "✅ Coverage Report: PASSED (≥${{ env.COVERAGE_TARGET }}%)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Coverage Report: FAILED (<${{ env.COVERAGE_TARGET }}%)" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "- Coverage reports available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "- Performance results available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "- Security scan results available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ needs.coverage-report.result }}" != "success" ]; then
+          echo "- ⚠️ Improve test coverage to meet ${{ env.COVERAGE_TARGET }}% target" >> $GITHUB_STEP_SUMMARY
+        fi
+        if [ "${{ needs.security-tests.result }}" != "success" ]; then
+          echo "- ⚠️ Address security test failures" >> $GITHUB_STEP_SUMMARY
+        fi
+        if [ "${{ needs.performance-tests.result }}" != "success" ]; then
+          echo "- ⚠️ Investigate performance regressions" >> $GITHUB_STEP_SUMMARY
+        fi
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true

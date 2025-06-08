@@ -1,0 +1,141 @@
+"""Examples demonstrating BSR dependency resolution with ORAS caching.
+
+This directory showcases how to use popular BSR dependencies like googleapis,
+grpc-gateway, and protoc-gen-validate in Buck2 protobuf builds.
+"""
+
+load("//rules:proto.bzl", "proto_library")
+load("//rules:go.bzl", "go_proto_library")
+load("//rules:python.bzl", "python_proto_library")
+
+# Basic example with googleapis
+proto_library(
+    name = "api_with_googleapis",
+    srcs = ["api_service.proto"],
+    bsr_deps = [
+        "buf.build/googleapis/googleapis",
+    ],
+    options = {
+        "go_package": "github.com/example/api/v1",
+        "java_package": "com.example.api.v1",
+        "python_package": "example.api.v1",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# gRPC service with googleapis and grpc-gateway
+proto_library(
+    name = "gateway_service_proto",
+    srcs = ["gateway_service.proto"],
+    bsr_deps = [
+        "buf.build/googleapis/googleapis",
+        "buf.build/grpc-ecosystem/grpc-gateway",
+    ],
+    options = {
+        "go_package": "github.com/example/gateway/v1",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# Service with validation support
+proto_library(
+    name = "validated_service_proto",
+    srcs = ["validated_service.proto"],
+    bsr_deps = [
+        "buf.build/googleapis/googleapis",
+        "buf.build/envoyproxy/protoc-gen-validate",
+    ],
+    options = {
+        "go_package": "github.com/example/validated/v1",
+        "python_package": "example.validated.v1",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# Complete service with all popular BSR dependencies
+proto_library(
+    name = "complete_service_proto",
+    srcs = ["complete_service.proto"],
+    bsr_deps = [
+        "buf.build/googleapis/googleapis",
+        "buf.build/grpc-ecosystem/grpc-gateway",
+        "buf.build/envoyproxy/protoc-gen-validate",
+        "buf.build/connectrpc/connect",
+    ],
+    options = {
+        "go_package": "github.com/example/complete/v1",
+        "java_package": "com.example.complete.v1",
+        "python_package": "example.complete.v1",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# Multi-service example demonstrating dependency sharing
+proto_library(
+    name = "user_service_proto",
+    srcs = ["user_service.proto"],
+    deps = [":common_types_proto"],
+    bsr_deps = [
+        "buf.build/googleapis/googleapis",
+        "buf.build/envoyproxy/protoc-gen-validate",
+    ],
+    options = {
+        "go_package": "github.com/example/user/v1",
+    },
+    visibility = ["PUBLIC"],
+)
+
+proto_library(
+    name = "order_service_proto", 
+    srcs = ["order_service.proto"],
+    deps = [":common_types_proto"],
+    bsr_deps = [
+        "buf.build/googleapis/googleapis",
+        "buf.build/grpc-ecosystem/grpc-gateway",
+    ],
+    options = {
+        "go_package": "github.com/example/order/v1",
+    },
+    visibility = ["PUBLIC"],
+)
+
+proto_library(
+    name = "common_types_proto",
+    srcs = ["common_types.proto"],
+    bsr_deps = [
+        "buf.build/googleapis/googleapis",
+    ],
+    options = {
+        "go_package": "github.com/example/common/v1",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# Language-specific examples
+go_proto_library(
+    name = "gateway_service_go",
+    proto = ":gateway_service_proto",
+    visibility = ["PUBLIC"],
+)
+
+python_proto_library(
+    name = "validated_service_python",
+    proto = ":validated_service_proto",
+    visibility = ["PUBLIC"],
+)
+
+# Performance test target with many BSR dependencies
+proto_library(
+    name = "performance_test_proto",
+    srcs = ["performance_test.proto"],
+    bsr_deps = [
+        "buf.build/googleapis/googleapis",
+        "buf.build/grpc-ecosystem/grpc-gateway",
+        "buf.build/envoyproxy/protoc-gen-validate",
+        "buf.build/connectrpc/connect",
+    ],
+    options = {
+        "go_package": "github.com/example/perf/v1",
+    },
+    visibility = ["PUBLIC"],
+)

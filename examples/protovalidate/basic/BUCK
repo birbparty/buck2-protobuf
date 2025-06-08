@@ -1,0 +1,47 @@
+"""Basic protovalidate examples demonstrating multi-language validation."""
+
+load("//rules:proto.bzl", "proto_library")
+load("//rules:protovalidate.bzl", "protovalidate_library", "multi_language_protovalidate")
+
+# Proto library with protovalidate constraints
+proto_library(
+    name = "user_proto",
+    srcs = ["user.proto"],
+    deps = [
+        "@protobuf//:timestamp_proto",
+        "//third_party/buf:validate_proto",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Go validation
+protovalidate_library(
+    name = "user_validation_go",
+    proto = ":user_proto",
+    language = "go",
+    visibility = ["PUBLIC"],
+)
+
+# Python validation
+protovalidate_library(
+    name = "user_validation_python",
+    proto = ":user_proto",
+    language = "python",
+    visibility = ["PUBLIC"],
+)
+
+# TypeScript validation
+protovalidate_library(
+    name = "user_validation_typescript",
+    proto = ":user_proto",
+    language = "typescript",
+    visibility = ["PUBLIC"],
+)
+
+# Multi-language validation bundle
+multi_language_protovalidate(
+    name = "user_validation_all",
+    proto = ":user_proto",
+    languages = ["go", "python", "typescript"],
+    visibility = ["PUBLIC"],
+)

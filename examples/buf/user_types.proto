@@ -1,0 +1,154 @@
+syntax = "proto3";
+
+package example.user.v1;
+
+option go_package = "github.com/example/buf-demo/user/v1;userv1";
+option java_package = "com.example.user.v1";
+option java_multiple_files = true;
+option java_outer_classname = "UserTypesProto";
+
+import "google/protobuf/timestamp.proto";
+
+// User represents a user in the system
+message User {
+  // user_id is the unique identifier for the user
+  string user_id = 1;
+  
+  // email is the user's email address
+  string email = 2;
+  
+  // username is the user's display name
+  string username = 3;
+  
+  // full_name is the user's full name
+  string full_name = 4;
+  
+  // status indicates the current status of the user
+  UserStatus status = 5;
+  
+  // created_at is when the user was created
+  google.protobuf.Timestamp created_at = 6;
+  
+  // updated_at is when the user was last updated
+  google.protobuf.Timestamp updated_at = 7;
+  
+  // profile contains additional user profile information
+  UserProfile profile = 8;
+  
+  // preferences contains user preferences
+  UserPreferences preferences = 9;
+}
+
+// UserStatus represents the status of a user account
+enum UserStatus {
+  // USER_STATUS_UNSPECIFIED is the default value
+  USER_STATUS_UNSPECIFIED = 0;
+  
+  // USER_STATUS_ACTIVE indicates an active user
+  USER_STATUS_ACTIVE = 1;
+  
+  // USER_STATUS_INACTIVE indicates an inactive user
+  USER_STATUS_INACTIVE = 2;
+  
+  // USER_STATUS_SUSPENDED indicates a suspended user
+  USER_STATUS_SUSPENDED = 3;
+  
+  // USER_STATUS_DELETED indicates a deleted user
+  USER_STATUS_DELETED = 4;
+}
+
+// UserProfile contains additional profile information
+message UserProfile {
+  // avatar_url is the URL to the user's avatar image
+  string avatar_url = 1;
+  
+  // bio is the user's biography
+  string bio = 2;
+  
+  // website is the user's website URL
+  string website = 3;
+  
+  // location is the user's location
+  string location = 4;
+  
+  // phone_number is the user's phone number
+  string phone_number = 5;
+  
+  // date_of_birth is the user's date of birth
+  google.protobuf.Timestamp date_of_birth = 6;
+}
+
+// UserPreferences contains user preference settings
+message UserPreferences {
+  // language is the user's preferred language
+  string language = 1;
+  
+  // timezone is the user's preferred timezone
+  string timezone = 2;
+  
+  // theme indicates the user's preferred UI theme
+  Theme theme = 3;
+  
+  // notification_settings contains notification preferences
+  NotificationSettings notification_settings = 4;
+  
+  // privacy_settings contains privacy preferences
+  PrivacySettings privacy_settings = 5;
+}
+
+// Theme represents UI theme preferences
+enum Theme {
+  // THEME_UNSPECIFIED is the default value
+  THEME_UNSPECIFIED = 0;
+  
+  // THEME_LIGHT indicates light theme
+  THEME_LIGHT = 1;
+  
+  // THEME_DARK indicates dark theme
+  THEME_DARK = 2;
+  
+  // THEME_AUTO indicates automatic theme based on system
+  THEME_AUTO = 3;
+}
+
+// NotificationSettings contains notification preferences
+message NotificationSettings {
+  // email_notifications indicates if email notifications are enabled
+  bool email_notifications = 1;
+  
+  // push_notifications indicates if push notifications are enabled
+  bool push_notifications = 2;
+  
+  // sms_notifications indicates if SMS notifications are enabled
+  bool sms_notifications = 3;
+  
+  // marketing_emails indicates if marketing emails are enabled
+  bool marketing_emails = 4;
+}
+
+// PrivacySettings contains privacy preferences
+message PrivacySettings {
+  // profile_visibility indicates who can see the user's profile
+  ProfileVisibility profile_visibility = 1;
+  
+  // data_sharing_consent indicates if the user consents to data sharing
+  bool data_sharing_consent = 2;
+  
+  // analytics_opt_out indicates if the user opts out of analytics
+  bool analytics_opt_out = 3;
+}
+
+// ProfileVisibility indicates who can see a user's profile
+enum ProfileVisibility {
+  // PROFILE_VISIBILITY_UNSPECIFIED is the default value
+  PROFILE_VISIBILITY_UNSPECIFIED = 0;
+  
+  // PROFILE_VISIBILITY_PUBLIC indicates public visibility
+  PROFILE_VISIBILITY_PUBLIC = 1;
+  
+  // PROFILE_VISIBILITY_FRIENDS indicates friends-only visibility
+  PROFILE_VISIBILITY_FRIENDS = 2;
+  
+  // PROFILE_VISIBILITY_PRIVATE indicates private visibility
+  PROFILE_VISIBILITY_PRIVATE = 3;
+}

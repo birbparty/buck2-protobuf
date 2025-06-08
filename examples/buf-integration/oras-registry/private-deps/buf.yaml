@@ -1,0 +1,52 @@
+version: v1
+name: oras.birb.homes/examples/internal-service
+deps:
+  # Private ORAS registry dependencies
+  - oras.birb.homes/common/types:v1.2.0
+  - oras.birb.homes/common/errors:v1.1.0
+  - oras.birb.homes/infra/monitoring:v1.3.0
+  
+  # Public BSR dependencies
+  - buf.build/googleapis/googleapis
+
+lint:
+  use:
+    - DEFAULT
+    - COMMENTS
+    - FIELD_NAMES_LOWER_SNAKE_CASE
+    - SERVICE_NAMES_PASCAL_CASE
+    - ENUM_NAMES_UPPER_SNAKE_CASE
+    - MESSAGE_NAMES_PASCAL_CASE
+    - RPC_NAMES_PASCAL_CASE
+    - PACKAGE_DEFINED
+    - PACKAGE_DIRECTORY_MATCH
+    - PACKAGE_SAME_DIRECTORY
+  except:
+    - PACKAGE_VERSION_SUFFIX
+  enum_zero_value_suffix: _UNSPECIFIED
+  rpc_allow_same_request_response: false
+  rpc_allow_google_protobuf_empty_requests: true
+  rpc_allow_google_protobuf_empty_responses: true
+  service_suffix: Service
+
+breaking:
+  use:
+    - WIRE_COMPATIBLE
+    - WIRE_JSON_COMPATIBLE
+  except:
+    - FIELD_SAME_DEFAULT
+  ignore:
+    - oras.birb.homes/experimental/**/*.proto  # Ignore experimental modules
+    - internal/deprecated/**/*.proto           # Ignore deprecated internals
+
+# ORAS-specific configuration
+publish:
+  # Configuration for publishing to private ORAS registry
+  repository: oras.birb.homes/examples/internal-service
+  visibility: private
+  team_access:
+    - examples-team
+    - platform-team
+  tags:
+    - latest
+    - stable

@@ -1,73 +1,88 @@
-"""Validation examples demonstrating protobuf linting and breaking change detection."""
+"""Modern protovalidate validation examples demonstrating runtime validation."""
 
 load("//rules:proto.bzl", "proto_library")
-load("//rules:validation.bzl", "proto_validate", "proto_breaking_check", "custom_validation_rule")
+load("//rules:protovalidate.bzl", "protovalidate_library", "proto_validate", "multi_language_protovalidate")
 
-# Example proto library with good style
+# Example proto library with modern protovalidate constraints
 proto_library(
     name = "user_service_proto",
     srcs = ["example.proto"],
     deps = [
         "@protobuf//:timestamp_proto",
+        "//third_party/buf:validate_proto",
     ],
     visibility = ["PUBLIC"],
 )
 
-# Basic validation example
+# Go validation using protovalidate
+protovalidate_library(
+    name = "user_validation_go",
+    proto = ":user_service_proto",
+    language = "go",
+    visibility = ["PUBLIC"],
+)
+
+# Python validation using protovalidate
+protovalidate_library(
+    name = "user_validation_python",
+    proto = ":user_service_proto",
+    language = "python",
+    visibility = ["PUBLIC"],
+)
+
+# TypeScript validation using protovalidate
+protovalidate_library(
+    name = "user_validation_typescript",
+    proto = ":user_service_proto",
+    language = "typescript",
+    visibility = ["PUBLIC"],
+)
+
+# Multi-language validation bundle
+multi_language_protovalidate(
+    name = "user_validation_all_languages",
+    proto = ":user_service_proto",
+    languages = ["go", "python", "typescript"],
+    visibility = ["PUBLIC"],
+)
+
+# Modern validation combining buf CLI + protovalidate
 proto_validate(
-    name = "validate_user_service",
+    name = "comprehensive_validation",
     srcs = [":user_service_proto"],
-    linter = "buf",
+    validation_engine = "protovalidate",
+    language = "go",
+    buf_lint = True,
     visibility = ["PUBLIC"],
 )
 
-# Custom validation rules
-custom_validation_rule(
-    name = "check_package_naming",
-    script = "//test/fixtures:check_package_naming.py",
-    error_message = "Package names must follow organization standards",
-    severity = "error",
-    rule_name = "Package Naming Convention",
-    description = "Ensures package names follow com.domain.service pattern",
+# Validation with BSR team caching enabled
+protovalidate_library(
+    name = "user_validation_cached",
+    proto = ":user_service_proto",
+    language = "go",
+    bsr_cache = True,
     visibility = ["PUBLIC"],
 )
 
-custom_validation_rule(
-    name = "check_service_naming",
-    script = "//test/fixtures:check_service_naming.py",
-    error_message = "Service names must end with 'Service'",
-    severity = "warning",
-    rule_name = "Service Naming Convention", 
-    description = "Ensures all gRPC services follow naming conventions",
+# Example of validation with custom configuration
+protovalidate_library(
+    name = "user_validation_custom_config",
+    proto = ":user_service_proto",
+    language = "go",
+    validation_config = {
+        "strict_mode": "true",
+        "fail_fast": "false",
+    },
     visibility = ["PUBLIC"],
 )
 
-# Comprehensive validation with custom rules
+# Validation for all languages with both buf CLI and protovalidate
 proto_validate(
-    name = "validate_with_custom_rules",
+    name = "validation_both_engines",
     srcs = [":user_service_proto"],
-    linter = "buf",
-    custom_rules = [
-        ":check_package_naming",
-        ":check_service_naming",
-    ],
-    visibility = ["PUBLIC"],
-)
-
-# Breaking change detection example
-proto_breaking_check(
-    name = "check_breaking_changes",
-    current = ":user_service_proto",
-    baseline = ":user_service_proto",  # Same proto for demo
-    output_format = "json",
-    visibility = ["PUBLIC"],
-)
-
-# Example of validation with custom buf configuration
-proto_validate(
-    name = "validate_strict_mode",
-    srcs = [":user_service_proto"],
-    linter = "buf",
-    config_file = "buf.yaml",
+    validation_engine = "both",
+    language = "go",
+    buf_lint = True,
     visibility = ["PUBLIC"],
 )

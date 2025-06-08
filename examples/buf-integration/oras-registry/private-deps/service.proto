@@ -1,0 +1,230 @@
+syntax = "proto3";
+
+package examples.oras.service.v1;
+
+option go_package = "github.com/example/buf-integration/oras/service/v1;servicev1";
+option java_package = "com.example.oras.service.v1";
+option java_multiple_files = true;
+option java_outer_classname = "ServiceProto";
+
+// Import from ORAS private registry
+import "oras.birb.homes/common/types/common.proto";
+import "oras.birb.homes/common/errors/error_types.proto";
+import "oras.birb.homes/infra/monitoring/metrics.proto";
+
+// Import from public BSR
+import "google/protobuf/timestamp.proto";
+
+// InternalService demonstrates using private ORAS registry dependencies
+// alongside public BSR dependencies for enterprise development.
+service InternalService {
+  // ProcessData processes internal data using shared common types.
+  rpc ProcessData(ProcessDataRequest) returns (ProcessDataResponse);
+  
+  // GetMetrics returns service metrics using infrastructure monitoring types.
+  rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
+  
+  // HandleError demonstrates error handling with shared error types.
+  rpc HandleError(HandleErrorRequest) returns (HandleErrorResponse);
+}
+
+// ProcessDataRequest demonstrates usage of private registry common types.
+message ProcessDataRequest {
+  // request_id uses common request ID type from private registry
+  common.types.RequestId request_id = 1;
+  
+  // user_context uses shared user context from private registry
+  common.types.UserContext user_context = 2;
+  
+  // data_payload is the actual data to process
+  bytes data_payload = 3;
+  
+  // processing_options configures how to process the data
+  ProcessingOptions processing_options = 4;
+  
+  // timestamp is when the request was made
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+// ProcessDataResponse returns the processing results.
+message ProcessDataResponse {
+  // request_id echoes back the request ID
+  common.types.RequestId request_id = 1;
+  
+  // result contains the processed data
+  ProcessingResult result = 2;
+  
+  // metrics includes processing metrics
+  infra.monitoring.ProcessingMetrics metrics = 3;
+  
+  // errors contains any processing errors
+  repeated common.errors.ServiceError errors = 4;
+}
+
+// ProcessingOptions configures data processing behavior.
+message ProcessingOptions {
+  // algorithm specifies which processing algorithm to use
+  ProcessingAlgorithm algorithm = 1;
+  
+  // timeout_seconds is the maximum processing time allowed
+  int32 timeout_seconds = 2;
+  
+  // quality_level specifies the desired output quality
+  QualityLevel quality_level = 3;
+  
+  // enable_caching indicates whether to cache results
+  bool enable_caching = 4;
+  
+  // metadata contains additional processing metadata
+  map<string, string> metadata = 5;
+}
+
+// ProcessingAlgorithm specifies available processing algorithms.
+enum ProcessingAlgorithm {
+  // PROCESSING_ALGORITHM_UNSPECIFIED is the default value
+  PROCESSING_ALGORITHM_UNSPECIFIED = 0;
+  
+  // PROCESSING_ALGORITHM_FAST uses fast but less accurate processing
+  PROCESSING_ALGORITHM_FAST = 1;
+  
+  // PROCESSING_ALGORITHM_ACCURATE uses slower but more accurate processing
+  PROCESSING_ALGORITHM_ACCURATE = 2;
+  
+  // PROCESSING_ALGORITHM_BALANCED balances speed and accuracy
+  PROCESSING_ALGORITHM_BALANCED = 3;
+}
+
+// QualityLevel specifies the desired output quality.
+enum QualityLevel {
+  // QUALITY_LEVEL_UNSPECIFIED is the default value
+  QUALITY_LEVEL_UNSPECIFIED = 0;
+  
+  // QUALITY_LEVEL_LOW provides basic quality output
+  QUALITY_LEVEL_LOW = 1;
+  
+  // QUALITY_LEVEL_MEDIUM provides standard quality output
+  QUALITY_LEVEL_MEDIUM = 2;
+  
+  // QUALITY_LEVEL_HIGH provides premium quality output
+  QUALITY_LEVEL_HIGH = 3;
+}
+
+// ProcessingResult contains the results of data processing.
+message ProcessingResult {
+  // status indicates the processing outcome
+  ProcessingStatus status = 1;
+  
+  // output_data contains the processed output
+  bytes output_data = 2;
+  
+  // confidence_score indicates confidence in the results (0-1)
+  float confidence_score = 3;
+  
+  // processing_time_ms is how long processing took
+  int64 processing_time_ms = 4;
+  
+  // algorithm_used indicates which algorithm was actually used
+  ProcessingAlgorithm algorithm_used = 5;
+  
+  // quality_achieved indicates the actual quality level achieved
+  QualityLevel quality_achieved = 6;
+}
+
+// ProcessingStatus indicates the outcome of processing.
+enum ProcessingStatus {
+  // PROCESSING_STATUS_UNSPECIFIED is the default value
+  PROCESSING_STATUS_UNSPECIFIED = 0;
+  
+  // PROCESSING_STATUS_SUCCESS indicates successful processing
+  PROCESSING_STATUS_SUCCESS = 1;
+  
+  // PROCESSING_STATUS_PARTIAL indicates partial success
+  PROCESSING_STATUS_PARTIAL = 2;
+  
+  // PROCESSING_STATUS_FAILED indicates processing failure
+  PROCESSING_STATUS_FAILED = 3;
+  
+  // PROCESSING_STATUS_TIMEOUT indicates processing timed out
+  PROCESSING_STATUS_TIMEOUT = 4;
+}
+
+// GetMetricsRequest requests service metrics.
+message GetMetricsRequest {
+  // request_id for tracking the metrics request
+  common.types.RequestId request_id = 1;
+  
+  // time_range specifies the time range for metrics
+  infra.monitoring.TimeRange time_range = 2;
+  
+  // metric_types specifies which metrics to include
+  repeated infra.monitoring.MetricType metric_types = 3;
+  
+  // granularity specifies the metric granularity
+  infra.monitoring.Granularity granularity = 4;
+}
+
+// GetMetricsResponse returns service metrics.
+message GetMetricsResponse {
+  // request_id echoes back the request ID
+  common.types.RequestId request_id = 1;
+  
+  // metrics contains the requested metrics
+  repeated infra.monitoring.Metric metrics = 2;
+  
+  // summary provides aggregated metric summary
+  infra.monitoring.MetricSummary summary = 3;
+  
+  // collection_timestamp indicates when metrics were collected
+  google.protobuf.Timestamp collection_timestamp = 4;
+}
+
+// HandleErrorRequest demonstrates error handling patterns.
+message HandleErrorRequest {
+  // request_id for tracking the error handling request
+  common.types.RequestId request_id = 1;
+  
+  // error_to_handle is the error that needs handling
+  common.errors.ServiceError error_to_handle = 2;
+  
+  // context provides additional error context
+  common.types.ErrorContext context = 3;
+  
+  // retry_count indicates how many times this has been retried
+  int32 retry_count = 4;
+}
+
+// HandleErrorResponse returns error handling results.
+message HandleErrorResponse {
+  // request_id echoes back the request ID
+  common.types.RequestId request_id = 1;
+  
+  // handling_result indicates how the error was handled
+  ErrorHandlingResult handling_result = 2;
+  
+  // recovery_actions lists actions taken to recover
+  repeated common.errors.RecoveryAction recovery_actions = 3;
+  
+  // should_retry indicates whether the operation should be retried
+  bool should_retry = 4;
+  
+  // retry_delay_seconds suggests how long to wait before retry
+  int32 retry_delay_seconds = 5;
+}
+
+// ErrorHandlingResult indicates the outcome of error handling.
+enum ErrorHandlingResult {
+  // ERROR_HANDLING_RESULT_UNSPECIFIED is the default value
+  ERROR_HANDLING_RESULT_UNSPECIFIED = 0;
+  
+  // ERROR_HANDLING_RESULT_RECOVERED indicates successful recovery
+  ERROR_HANDLING_RESULT_RECOVERED = 1;
+  
+  // ERROR_HANDLING_RESULT_PARTIAL indicates partial recovery
+  ERROR_HANDLING_RESULT_PARTIAL = 2;
+  
+  // ERROR_HANDLING_RESULT_FAILED indicates recovery failed
+  ERROR_HANDLING_RESULT_FAILED = 3;
+  
+  // ERROR_HANDLING_RESULT_ESCALATED indicates error was escalated
+  ERROR_HANDLING_RESULT_ESCALATED = 4;
+}

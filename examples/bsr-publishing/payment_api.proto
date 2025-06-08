@@ -1,0 +1,144 @@
+syntax = "proto3";
+
+package myorg.payment.v1;
+
+import "user_api.proto";
+
+option go_package = "github.com/myorg/protos/payment/v1;paymentv1";
+
+// Payment processing API
+service PaymentService {
+  // Create a payment method
+  rpc CreatePaymentMethod(CreatePaymentMethodRequest) returns (CreatePaymentMethodResponse);
+  
+  // Process a payment
+  rpc ProcessPayment(ProcessPaymentRequest) returns (ProcessPaymentResponse);
+  
+  // Get payment status
+  rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
+  
+  // Refund a payment
+  rpc RefundPayment(RefundPaymentRequest) returns (RefundPaymentResponse);
+  
+  // List user payments
+  rpc ListPayments(ListPaymentsRequest) returns (ListPaymentsResponse);
+}
+
+// Payment method types
+enum PaymentMethodType {
+  PAYMENT_METHOD_TYPE_UNSPECIFIED = 0;
+  PAYMENT_METHOD_TYPE_CREDIT_CARD = 1;
+  PAYMENT_METHOD_TYPE_DEBIT_CARD = 2;
+  PAYMENT_METHOD_TYPE_BANK_ACCOUNT = 3;
+  PAYMENT_METHOD_TYPE_DIGITAL_WALLET = 4;
+}
+
+// Payment status
+enum PaymentStatus {
+  PAYMENT_STATUS_UNSPECIFIED = 0;
+  PAYMENT_STATUS_PENDING = 1;
+  PAYMENT_STATUS_PROCESSING = 2;
+  PAYMENT_STATUS_COMPLETED = 3;
+  PAYMENT_STATUS_FAILED = 4;
+  PAYMENT_STATUS_CANCELLED = 5;
+  PAYMENT_STATUS_REFUNDED = 6;
+}
+
+// Payment method entity
+message PaymentMethod {
+  string id = 1;
+  string user_id = 2;
+  PaymentMethodType type = 3;
+  string last_four = 4;
+  string brand = 5;
+  int32 exp_month = 6;
+  int32 exp_year = 7;
+  bool is_default = 8;
+  int64 created_at = 9;
+}
+
+// Payment entity
+message Payment {
+  string id = 1;
+  string user_id = 2;
+  string payment_method_id = 3;
+  int64 amount_cents = 4;
+  string currency = 5;
+  PaymentStatus status = 6;
+  string description = 7;
+  map<string, string> metadata = 8;
+  int64 created_at = 9;
+  int64 updated_at = 10;
+}
+
+// Money representation
+message Money {
+  int64 amount_cents = 1;
+  string currency = 2;
+}
+
+// Create payment method request
+message CreatePaymentMethodRequest {
+  string user_id = 1;
+  PaymentMethodType type = 2;
+  // Card details would be encrypted/tokenized in real implementation
+  string token = 3;
+  bool set_as_default = 4;
+}
+
+// Create payment method response
+message CreatePaymentMethodResponse {
+  PaymentMethod payment_method = 1;
+}
+
+// Process payment request
+message ProcessPaymentRequest {
+  string user_id = 1;
+  string payment_method_id = 2;
+  Money amount = 3;
+  string description = 4;
+  map<string, string> metadata = 5;
+}
+
+// Process payment response
+message ProcessPaymentResponse {
+  Payment payment = 1;
+}
+
+// Get payment request
+message GetPaymentRequest {
+  string id = 1;
+}
+
+// Get payment response
+message GetPaymentResponse {
+  Payment payment = 1;
+}
+
+// Refund payment request
+message RefundPaymentRequest {
+  string payment_id = 1;
+  Money amount = 2; // Optional partial refund amount
+  string reason = 3;
+}
+
+// Refund payment response
+message RefundPaymentResponse {
+  Payment refund = 1;
+  bool success = 2;
+}
+
+// List payments request
+message ListPaymentsRequest {
+  string user_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+  PaymentStatus status_filter = 4;
+}
+
+// List payments response
+message ListPaymentsResponse {
+  repeated Payment payments = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}

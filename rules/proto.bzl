@@ -14,6 +14,7 @@ load("//rules/private:bundle_impl.bzl", "validate_bundle_config", "create_langua
 load("//rules/private:grpc_impl.bzl", "validate_grpc_service_config", "generate_grpc_gateway_code", "generate_validation_code", "generate_mock_code", "create_grpc_service_info")
 load("//rules/private:cache_impl.bzl", "get_default_cache_config", "create_cache_key_info", "try_cache_lookup", "store_in_cache")
 load("//rules/private:cache_keys.bzl", "generate_cache_key_for_bundle", "generate_cache_key_for_grpc_service")
+load("//rules/private:bsr_impl.bzl", "resolve_bsr_dependencies", "validate_bsr_dependencies")
 
 # Re-export ProtoInfo for external use
 ProtoInfo = ProtoInfo
@@ -22,6 +23,7 @@ def proto_library(
     name,
     srcs,
     deps = [],
+    bsr_deps = [],
     visibility = ["//visibility:private"],
     import_prefix = "",
     strip_import_prefix = "",
@@ -42,6 +44,7 @@ def proto_library(
         name: Unique name for this protobuf library target
         srcs: List of .proto files to include in this library
         deps: List of proto_library targets that this library depends on
+        bsr_deps: List of BSR dependencies (e.g., ["buf.build/googleapis/googleapis"])
         visibility: Buck2 visibility specification controlling who can depend on this
         import_prefix: Prefix to add to all import paths for this library
         strip_import_prefix: Prefix to strip from import paths when resolving
@@ -56,6 +59,10 @@ def proto_library(
             name = "user_proto",
             srcs = ["user.proto", "user_types.proto"],
             deps = ["//common:common_proto"],
+            bsr_deps = [
+                "buf.build/googleapis/googleapis",
+                "buf.build/grpc-ecosystem/grpc-gateway",
+            ],
             options = {
                 "go_package": "github.com/org/user/v1",
                 "java_package": "com.org.user.v1",
@@ -68,6 +75,7 @@ def proto_library(
         name = name,
         srcs = srcs,
         deps = deps,
+        bsr_deps = bsr_deps,
         visibility = visibility,
         import_prefix = import_prefix,
         strip_import_prefix = strip_import_prefix,
@@ -84,6 +92,7 @@ def _proto_library_impl(ctx):
     Handles:
     - Proto compilation with protoc
     - Dependency resolution and transitive deps
+    - BSR dependency resolution with ORAS caching
     - Descriptor set generation
     - Validation integration
     - Caching optimization
@@ -99,6 +108,20 @@ def _proto_library_impl(ctx):
     for dep in ctx.attrs.deps:
         if ProtoInfo in dep:
             dep_proto_infos.append(dep[ProtoInfo])
+    
+    # Handle BSR dependencies if present
+    bsr_proto_files = []
+    bsr_import_paths = []
+    
+    if ctx.attrs.bsr_deps:
+        # Load BSR resolution function
+        bsr_resolved_info = resolve_bsr_dependencies(ctx, ctx.attrs.bsr_deps)
+        bsr_proto_files = bsr_resolved_info.get("proto_files", [])
+        bsr_import_paths = bsr_resolved_info.get("import_paths", [])
+        
+        # Add BSR dependencies to transitive info
+        if bsr_resolved_info.get("proto_infos"):
+            dep_proto_infos.extend(bsr_resolved_info["proto_infos"])
     
     # Merge transitive dependency information
     transitive_info = merge_proto_infos(dep_proto_infos)
@@ -120,12 +143,15 @@ def _proto_library_impl(ctx):
     if "." not in import_paths:
         import_paths.append(".")
     
+    # Combine all import paths (local + BSR + transitive)
+    all_import_paths = import_paths + bsr_import_paths + transitive_info["transitive_import_paths"]
+    
     # Create descriptor set via protoc compilation
     descriptor_set = create_descriptor_set_action(
         ctx,
-        proto_files,
+        proto_files + bsr_proto_files,
         transitive_info["transitive_descriptor_sets"],
-        import_paths + transitive_info["transitive_import_paths"]
+        all_import_paths
     )
     
     # Extract package options from proto files (for language-specific generation)
@@ -143,8 +169,8 @@ def _proto_library_impl(ctx):
         proto_files = proto_files,
         import_paths = import_paths,
         transitive_descriptor_sets = transitive_info["transitive_descriptor_sets"] + [descriptor_set],
-        transitive_proto_files = transitive_info["transitive_proto_files"] + proto_files,
-        transitive_import_paths = transitive_info["transitive_import_paths"] + import_paths,
+        transitive_proto_files = transitive_info["transitive_proto_files"] + proto_files + bsr_proto_files,
+        transitive_import_paths = all_import_paths,
         go_package = go_package,
         python_package = python_package,
         java_package = java_package,
@@ -164,6 +190,7 @@ proto_library_rule = rule(
     attrs = {
         "srcs": attrs.list(attrs.source(), doc = "Proto source files"),
         "deps": attrs.list(attrs.dep(providers = [ProtoInfo]), doc = "Proto dependencies"),
+        "bsr_deps": attrs.list(attrs.string(), default = [], doc = "BSR dependencies"),
         "import_prefix": attrs.string(default = "", doc = "Import prefix"),
         "strip_import_prefix": attrs.string(default = "", doc = "Strip import prefix"),
         "options": attrs.dict(attrs.string(), attrs.string(), default = {}, doc = "Protobuf options"),

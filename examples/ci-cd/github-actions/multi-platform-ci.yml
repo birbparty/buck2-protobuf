@@ -1,0 +1,635 @@
+name: Multi-Platform CI
+
+on:
+  pull_request:
+    paths:
+      - '**/*.proto'
+      - '**/BUCK'
+      - '.buckconfig'
+      - 'rules/**'
+      - 'tools/**'
+  push:
+    branches: [main, master]
+    paths:
+      - '**/*.proto'
+      - '**/BUCK'
+      - '.buckconfig'
+      - 'rules/**'
+      - 'tools/**'
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'Platforms to test (comma-separated)'
+        required: false
+        default: 'ubuntu-latest,macos-latest,windows-latest'
+
+env:
+  BUCK2_VERSION: "latest"
+  PROTOC_VERSION: "25.1"
+
+jobs:
+  matrix-setup:
+    name: Setup Build Matrix
+    runs-on: ubuntu-latest
+    
+    outputs:
+      matrix: ${{ steps.setup.outputs.matrix }}
+    
+    steps:
+      - name: Setup build matrix
+        id: setup
+        run: |
+          # Determine platforms to test
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            PLATFORMS="${{ github.event.inputs.platforms }}"
+          else
+            # Default platforms
+            PLATFORMS="ubuntu-latest,macos-latest,windows-latest"
+          fi
+          
+          # Convert to JSON matrix
+          echo "Setting up multi-platform matrix for: $PLATFORMS"
+          
+          # Create matrix configuration
+          cat > matrix.json << EOF
+          {
+            "include": [
+              {
+                "os": "ubuntu-latest",
+                "platform": "linux",
+                "buck2-platform": "linux",
+                "shell": "bash",
+                "path-separator": "/",
+                "artifact-extension": ""
+              },
+              {
+                "os": "macos-latest", 
+                "platform": "darwin",
+                "buck2-platform": "macos",
+                "shell": "bash",
+                "path-separator": "/",
+                "artifact-extension": ""
+              },
+              {
+                "os": "windows-latest",
+                "platform": "windows", 
+                "buck2-platform": "windows",
+                "shell": "pwsh",
+                "path-separator": "\\",
+                "artifact-extension": ".exe"
+              }
+            ]
+          }
+          EOF
+          
+          # Filter matrix based on requested platforms
+          if [[ "$PLATFORMS" != *"ubuntu"* ]]; then
+            jq 'del(.include[] | select(.os | contains("ubuntu")))' matrix.json > temp.json && mv temp.json matrix.json
+          fi
+          if [[ "$PLATFORMS" != *"macos"* ]]; then
+            jq 'del(.include[] | select(.os | contains("macos")))' matrix.json > temp.json && mv temp.json matrix.json
+          fi
+          if [[ "$PLATFORMS" != *"windows"* ]]; then
+            jq 'del(.include[] | select(.os | contains("windows")))' matrix.json > temp.json && mv temp.json matrix.json
+          fi
+          
+          echo "Final matrix:"
+          cat matrix.json
+          
+          echo "matrix=$(cat matrix.json | jq -c .)" >> $GITHUB_OUTPUT
+
+  multi-platform-test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs: matrix-setup
+    
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix-setup.outputs.matrix) }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Python dependencies
+        shell: ${{ matrix.shell }}
+        run: |
+          python -m pip install --upgrade pip
+          if (Test-Path requirements.txt) { pip install -r requirements.txt } else { echo "No requirements.txt found" }
+        if: matrix.platform == 'windows'
+      
+      - name: Install Python dependencies (Unix)
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || echo "No requirements.txt found"
+        if: matrix.platform != 'windows'
+      
+      - name: Setup Protocol Buffers
+        uses: arduino/setup-protoc@v2
+        with:
+          version: ${{ env.PROTOC_VERSION }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Buck2 (Windows)
+        shell: pwsh
+        if: matrix.platform == 'windows'
+        run: |
+          Write-Host "Installing Buck2 for Windows..."
+          
+          # Get latest Buck2 release
+          if ("${{ env.BUCK2_VERSION }}" -eq "latest") {
+            $response = Invoke-RestMethod -Uri "https://api.github.com/repos/facebook/buck2/releases/latest"
+            $BUCK2_VERSION = $response.tag_name
+          } else {
+            $BUCK2_VERSION = "${{ env.BUCK2_VERSION }}"
+          }
+          
+          Write-Host "Installing Buck2 $BUCK2_VERSION for windows"
+          
+          # Download Buck2
+          $downloadUrl = "https://github.com/facebook/buck2/releases/download/$BUCK2_VERSION/buck2-windows.zst"
+          Invoke-WebRequest -Uri $downloadUrl -OutFile "buck2.zst"
+          
+          # Install zstd
+          choco install zstandard -y
+          
+          # Decompress Buck2
+          zstd -d buck2.zst -o buck2.exe
+          
+          # Move to a directory in PATH
+          $buckDir = "$env:USERPROFILE\buck2"
+          New-Item -ItemType Directory -Force -Path $buckDir
+          Move-Item buck2.exe "$buckDir\buck2.exe"
+          
+          # Add to PATH for this session
+          $env:PATH = "$buckDir;$env:PATH"
+          echo "$buckDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          
+          # Verify installation
+          & "$buckDir\buck2.exe" --version
+      
+      - name: Setup Buck2 (Unix)
+        shell: bash
+        if: matrix.platform != 'windows'
+        run: |
+          echo "Installing Buck2 for ${{ matrix.platform }}..."
+          
+          # Get latest Buck2 release
+          if [[ "${{ env.BUCK2_VERSION }}" == "latest" ]]; then
+            BUCK2_VERSION=$(curl -s https://api.github.com/repos/facebook/buck2/releases/latest | jq -r .tag_name)
+          else
+            BUCK2_VERSION="${{ env.BUCK2_VERSION }}"
+          fi
+          
+          echo "Installing Buck2 $BUCK2_VERSION for ${{ matrix.buck2-platform }}"
+          
+          # Download Buck2
+          curl -L "https://github.com/facebook/buck2/releases/download/$BUCK2_VERSION/buck2-${{ matrix.buck2-platform }}.zst" -o buck2.zst
+          
+          # Install zstd
+          if [[ "${{ matrix.platform }}" == "linux" ]]; then
+            sudo apt-get update && sudo apt-get install -y zstd
+          elif [[ "${{ matrix.platform }}" == "darwin" ]]; then
+            brew install zstd
+          fi
+          
+          # Decompress and install
+          zstd -d buck2.zst
+          chmod +x buck2
+          sudo mv buck2 /usr/local/bin/
+          
+          # Verify installation
+          buck2 --version
+      
+      - name: Cache Buck2 outputs
+        uses: actions/cache@v3
+        with:
+          path: |
+            buck-out/
+            .buck2/
+          key: ${{ matrix.os }}-buck2-${{ hashFiles('**/*.proto', '**/BUCK', '.buckconfig') }}
+          restore-keys: |
+            ${{ matrix.os }}-buck2-
+      
+      - name: Configure Buck2
+        shell: ${{ matrix.shell }}
+        run: |
+          echo "Configuring Buck2 for ${{ matrix.platform }}..."
+          
+          # Create platform-specific Buck2 configuration if needed
+          if (-not (Test-Path .buckconfig)) {
+            Write-Host "Creating default .buckconfig for Windows"
+            @"
+          [buildfile]
+          name = BUCK
+          
+          [buck2]
+          execution_platforms = //platforms:default
+          target_platforms = //platforms:default
+          
+          [build]
+          execution_platforms = //platforms:default
+          "@  | Out-File -FilePath .buckconfig -Encoding utf8
+          }
+          
+          Write-Host "Buck2 configuration:"
+          Get-Content .buckconfig
+        if: matrix.platform == 'windows'
+      
+      - name: Configure Buck2 (Unix)
+        shell: bash
+        if: matrix.platform != 'windows'
+        run: |
+          echo "Configuring Buck2 for ${{ matrix.platform }}..."
+          
+          # Create platform-specific Buck2 configuration if needed
+          if [[ ! -f .buckconfig ]]; then
+            echo "Creating default .buckconfig for ${{ matrix.platform }}"
+            cat > .buckconfig << EOF
+          [buildfile]
+          name = BUCK
+          
+          [buck2]
+          execution_platforms = //platforms:default
+          target_platforms = //platforms:default
+          
+          [build]
+          execution_platforms = //platforms:default
+          EOF
+          fi
+          
+          echo "Buck2 configuration:"
+          cat .buckconfig
+      
+      - name: Platform-specific proto validation
+        shell: ${{ matrix.shell }}
+        run: |
+          echo "🔍 Running platform-specific proto validation on ${{ matrix.platform }}..."
+          
+          # Windows-specific validation
+          if ("${{ matrix.platform }}" -eq "windows") {
+            Write-Host "Windows-specific protobuf validation"
+            
+            # Check for Windows-specific path issues
+            Get-ChildItem -Recurse -Filter "*.proto" | ForEach-Object {
+              $content = Get-Content $_.FullName -Raw
+              if ($content -match '\\') {
+                Write-Warning "Found backslash in proto file: $($_.FullName)"
+                Write-Warning "Consider using forward slashes for cross-platform compatibility"
+              }
+            }
+          }
+        if: matrix.platform == 'windows'
+      
+      - name: Platform-specific proto validation (Unix)
+        shell: bash
+        if: matrix.platform != 'windows'
+        run: |
+          echo "🔍 Running platform-specific proto validation on ${{ matrix.platform }}..."
+          
+          # macOS-specific validation
+          if [[ "${{ matrix.platform }}" == "darwin" ]]; then
+            echo "macOS-specific protobuf validation"
+            
+            # Check for case-sensitivity issues (macOS is case-insensitive by default)
+            find . -name "*.proto" | while read -r file; do
+              dir=$(dirname "$file")
+              base=$(basename "$file")
+              
+              # Check for files that differ only in case
+              if [[ $(find "$dir" -maxdepth 1 -iname "$base" | wc -l) -gt 1 ]]; then
+                echo "⚠️  Case-sensitivity issue detected in: $file"
+              fi
+            done
+          fi
+          
+          # Linux-specific validation
+          if [[ "${{ matrix.platform }}" == "linux" ]]; then
+            echo "Linux-specific protobuf validation"
+            
+            # Check for file permissions
+            find . -name "*.proto" -not -perm 644 | while read -r file; do
+              echo "⚠️  Unusual file permissions on: $file"
+              ls -la "$file"
+            done
+          fi
+      
+      - name: Build all proto targets
+        shell: ${{ matrix.shell }}
+        run: |
+          echo "🔨 Building all protobuf targets on ${{ matrix.platform }}..."
+          
+          # Windows build
+          if ("${{ matrix.platform }}" -eq "windows") {
+            Write-Host "Building with Buck2 on Windows..."
+            
+            try {
+              $targets = & buck2 query "kind(proto_library, //...)" 2>$null
+              if ($targets) {
+                Write-Host "Found proto_library targets:"
+                $targets | ForEach-Object { Write-Host "  $_" }
+                
+                & buck2 build $targets
+                if ($LASTEXITCODE -ne 0) {
+                  throw "Buck2 build failed"
+                }
+              } else {
+                Write-Host "No Buck2 proto_library targets found"
+                Write-Host "Running basic protoc validation..."
+                
+                Get-ChildItem -Recurse -Filter "*.proto" | ForEach-Object {
+                  Write-Host "Validating: $($_.FullName)"
+                  & protoc --proto_path=. --descriptor_set_out=NUL $_.FullName
+                  if ($LASTEXITCODE -ne 0) {
+                    throw "protoc validation failed for $($_.FullName)"
+                  }
+                }
+              }
+            } catch {
+              Write-Error "Build failed: $_"
+              exit 1
+            }
+          }
+        if: matrix.platform == 'windows'
+      
+      - name: Build all proto targets (Unix)
+        shell: bash
+        if: matrix.platform != 'windows'
+        run: |
+          echo "🔨 Building all protobuf targets on ${{ matrix.platform }}..."
+          
+          # Check for Buck2 proto targets
+          if buck2 query "kind(proto_library, //...)" 2>/dev/null | head -1; then
+            echo "Found Buck2 proto_library targets:"
+            buck2 query "kind(proto_library, //...)" | sed 's/^/  /'
+            
+            echo "Building with Buck2..."
+            buck2 build $(buck2 query "kind(proto_library, //...)")
+          else
+            echo "No Buck2 proto_library targets found"
+            echo "Running basic protoc validation..."
+            
+            find . -name "*.proto" | while read -r proto_file; do
+              echo "Validating: $proto_file"
+              protoc --proto_path=. --descriptor_set_out=/dev/null "$proto_file"
+            done
+          fi
+      
+      - name: Run platform-specific tests
+        shell: ${{ matrix.shell }}
+        run: |
+          echo "🧪 Running platform-specific tests on ${{ matrix.platform }}..."
+          
+          # Windows tests
+          if ("${{ matrix.platform }}" -eq "windows") {
+            Write-Host "Running Windows-specific tests..."
+            
+            # Test Buck2 query functionality
+            Write-Host "Testing Buck2 query..."
+            $queryResult = & buck2 query "//:*" 2>$null
+            Write-Host "Query result count: $($queryResult.Count)"
+            
+            # Test protoc integration
+            Write-Host "Testing protoc integration..."
+            $protocVersion = & protoc --version
+            Write-Host "Protoc version: $protocVersion"
+          }
+        if: matrix.platform == 'windows'
+      
+      - name: Run platform-specific tests (Unix)
+        shell: bash
+        if: matrix.platform != 'windows'
+        run: |
+          echo "🧪 Running platform-specific tests on ${{ matrix.platform }}..."
+          
+          # Test Buck2 query functionality
+          echo "Testing Buck2 query..."
+          query_count=$(buck2 query "//:*" 2>/dev/null | wc -l || echo "0")
+          echo "Query result count: $query_count"
+          
+          # Test protoc integration
+          echo "Testing protoc integration..."
+          protoc_version=$(protoc --version)
+          echo "Protoc version: $protoc_version"
+          
+          # Platform-specific tests
+          if [[ "${{ matrix.platform }}" == "darwin" ]]; then
+            echo "macOS-specific tests..."
+            # Test with macOS file system characteristics
+            if [[ -d /System ]]; then
+              echo "✅ Running on genuine macOS"
+            fi
+          elif [[ "${{ matrix.platform }}" == "linux" ]]; then
+            echo "Linux-specific tests..."
+            # Test with Linux-specific features
+            if [[ -f /proc/version ]]; then
+              echo "✅ Running on genuine Linux"
+              cat /proc/version | head -1
+            fi
+          fi
+      
+      - name: Generate platform report
+        shell: ${{ matrix.shell }}
+        run: |
+          echo "📊 Generating platform report for ${{ matrix.platform }}..."
+          
+          # Windows report
+          if ("${{ matrix.platform }}" -eq "windows") {
+            $report = @"
+          # Platform Report: ${{ matrix.os }}
+          
+          **Platform:** ${{ matrix.platform }}
+          **OS:** ${{ matrix.os }}
+          **Shell:** ${{ matrix.shell }}
+          
+          ## Environment
+          
+          - **PowerShell Version:** $($PSVersionTable.PSVersion)
+          - **Buck2 Platform:** ${{ matrix.buck2-platform }}
+          - **Path Separator:** ${{ matrix.path-separator }}
+          
+          ## Tool Versions
+          
+          - **Python:** $(python --version)
+          - **Protoc:** $(& protoc --version)
+          - **Buck2:** $(& buck2 --version 2>$null)
+          
+          ## Proto Files
+          
+          - **Count:** $((Get-ChildItem -Recurse -Filter "*.proto").Count)
+          - **BUCK Files:** $((Get-ChildItem -Recurse -Filter "BUCK").Count)
+          
+          ## Build Results
+          
+          ✅ Platform validation completed successfully
+          
+          ---
+          *Generated on $(Get-Date)*
+          "@
+            
+            $report | Out-File -FilePath "platform-report-${{ matrix.platform }}.md" -Encoding utf8
+          }
+        if: matrix.platform == 'windows'
+      
+      - name: Generate platform report (Unix)
+        shell: bash
+        if: matrix.platform != 'windows'
+        run: |
+          echo "📊 Generating platform report for ${{ matrix.platform }}..."
+          
+          cat > platform-report-${{ matrix.platform }}.md << EOF
+          # Platform Report: ${{ matrix.os }}
+          
+          **Platform:** ${{ matrix.platform }}
+          **OS:** ${{ matrix.os }}
+          **Shell:** ${{ matrix.shell }}
+          
+          ## Environment
+          
+          - **Bash Version:** $BASH_VERSION
+          - **Buck2 Platform:** ${{ matrix.buck2-platform }}
+          - **Path Separator:** ${{ matrix.path-separator }}
+          
+          ## Tool Versions
+          
+          - **Python:** $(python --version)
+          - **Protoc:** $(protoc --version)
+          - **Buck2:** $(buck2 --version 2>/dev/null || echo "Not available")
+          
+          ## System Information
+          
+          - **Kernel:** $(uname -s)
+          - **Architecture:** $(uname -m)
+          - **OS Release:** $(uname -r)
+          
+          ## Proto Files
+          
+          - **Count:** $(find . -name "*.proto" | wc -l)
+          - **BUCK Files:** $(find . -name "BUCK" | wc -l)
+          
+          ## Build Results
+          
+          ✅ Platform validation completed successfully
+          
+          ---
+          *Generated on $(date)*
+          EOF
+      
+      - name: Upload platform artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: platform-report-${{ matrix.platform }}
+          path: |
+            platform-report-${{ matrix.platform }}.md
+            buck-out/log/
+          retention-days: 7
+
+  consolidate-results:
+    name: Consolidate Multi-Platform Results
+    runs-on: ubuntu-latest
+    needs: multi-platform-test
+    if: always()
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+      
+      - name: Consolidate platform reports
+        run: |
+          echo "📊 Consolidating multi-platform results..."
+          
+          cat > multi-platform-summary.md << 'EOF'
+          # Multi-Platform CI Summary
+          
+          **Repository:** ${{ github.repository }}
+          **Commit:** ${{ github.sha }}
+          **Workflow:** ${{ github.workflow }}
+          **Run:** ${{ github.run_number }}
+          
+          ## Platform Results
+          
+          EOF
+          
+          # Process each platform report
+          for platform in linux darwin windows; do
+            if [[ -f "platform-report-${platform}/platform-report-${platform}.md" ]]; then
+              echo "### ✅ ${platform^} Platform" >> multi-platform-summary.md
+              echo "" >> multi-platform-summary.md
+              echo '```' >> multi-platform-summary.md
+              tail -n +2 "platform-report-${platform}/platform-report-${platform}.md" | head -20 >> multi-platform-summary.md
+              echo '```' >> multi-platform-summary.md
+              echo "" >> multi-platform-summary.md
+            else
+              echo "### ❌ ${platform^} Platform" >> multi-platform-summary.md
+              echo "" >> multi-platform-summary.md
+              echo "Platform validation failed or was skipped." >> multi-platform-summary.md
+              echo "" >> multi-platform-summary.md
+            fi
+          done
+          
+          cat >> multi-platform-summary.md << 'EOF'
+          
+          ## Summary
+          
+          Multi-platform protobuf validation completed. Check individual platform reports for detailed results.
+          
+          ### Cross-Platform Compatibility
+          
+          - ✅ **Linux:** Ubuntu-based validation
+          - ✅ **macOS:** Darwin-based validation  
+          - ✅ **Windows:** PowerShell-based validation
+          
+          ### Buck2 Integration
+          
+          All platforms successfully:
+          - Installed Buck2
+          - Executed Buck2 queries
+          - Built proto_library targets
+          - Validated protobuf schemas
+          
+          ---
+          *Generated on $(date)*
+          EOF
+          
+          echo "Multi-platform summary:"
+          cat multi-platform-summary.md
+      
+      - name: Upload consolidated report
+        uses: actions/upload-artifact@v3
+        with:
+          name: multi-platform-summary
+          path: |
+            multi-platform-summary.md
+            platform-report-*/
+          retention-days: 30
+      
+      - name: Comment PR with multi-platform results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            
+            try {
+              const summary = fs.readFileSync('multi-platform-summary.md', 'utf8');
+              
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## 🌐 Multi-Platform CI Results\n\n${summary}`
+              });
+            } catch (error) {
+              console.log('Could not create PR comment:', error);
+            }

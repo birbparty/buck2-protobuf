@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package example.user.v1;
+
+option go_package = "github.com/example/buf-demo/user/v1;userv1";
+option java_package = "com.example.user.v1";
+option java_multiple_files = true;
+option java_outer_classname = "UserProto";
+
+import "user_types.proto";
+
+// UserService provides user management operations
+service UserService {
+  // CreateUser creates a new user
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  
+  // GetUser retrieves a user by ID
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  
+  // UpdateUser updates an existing user
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  
+  // DeleteUser deletes a user by ID
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  
+  // ListUsers lists users with pagination
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+}
+
+// CreateUserRequest contains the data needed to create a new user
+message CreateUserRequest {
+  // user is the user data to create
+  User user = 1;
+}
+
+// CreateUserResponse contains the newly created user
+message CreateUserResponse {
+  // user is the created user with assigned ID
+  User user = 1;
+}
+
+// GetUserRequest contains the ID of the user to retrieve
+message GetUserRequest {
+  // user_id is the unique identifier for the user
+  string user_id = 1;
+}
+
+// GetUserResponse contains the requested user
+message GetUserResponse {
+  // user is the requested user
+  User user = 1;
+}
+
+// UpdateUserRequest contains the user data to update
+message UpdateUserRequest {
+  // user is the user data to update
+  User user = 1;
+  
+  // update_mask specifies which fields to update
+  google.protobuf.FieldMask update_mask = 2;
+}
+
+// UpdateUserResponse contains the updated user
+message UpdateUserResponse {
+  // user is the updated user
+  User user = 1;
+}
+
+// DeleteUserRequest contains the ID of the user to delete
+message DeleteUserRequest {
+  // user_id is the unique identifier for the user to delete
+  string user_id = 1;
+}
+
+// DeleteUserResponse is returned after successful user deletion
+message DeleteUserResponse {
+  // success indicates whether the deletion was successful
+  bool success = 1;
+}
+
+// ListUsersRequest contains pagination parameters for listing users
+message ListUsersRequest {
+  // page_size is the maximum number of users to return
+  int32 page_size = 1;
+  
+  // page_token is the pagination token from a previous request
+  string page_token = 2;
+  
+  // filter is an optional filter expression
+  string filter = 3;
+}
+
+// ListUsersResponse contains a page of users
+message ListUsersResponse {
+  // users is the list of users for this page
+  repeated User users = 1;
+  
+  // next_page_token is the token for the next page
+  string next_page_token = 2;
+  
+  // total_count is the total number of users matching the filter
+  int32 total_count = 3;
+}

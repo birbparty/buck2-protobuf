@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package myorg.services.user.v1;
+
+// Import from private repository (platform schemas)
+import "common/types.proto";
+import "auth/v1/auth.proto";
+
+// Import from public repositories
+import "google/api/annotations.proto";
+import "google/api/http.proto";
+import "validate/validate.proto";
+
+option go_package = "github.com/myorg/services/user/v1;userv1";
+
+// User service with private BSR dependencies
+service UserService {
+  // Get user by ID - requires authentication from private auth module
+  rpc GetUser(GetUserRequest) returns (GetUserResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/users/{user_id}"
+    };
+  }
+  
+  // Create new user - uses private common types
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/users"
+      body: "*"
+    };
+  }
+  
+  // Update user - requires write access to private schemas
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/users/{user_id}"
+      body: "*"
+    };
+  }
+}
+
+message GetUserRequest {
+  // User ID with validation from public validate package
+  string user_id = 1 [(validate.rules).string.min_len = 1];
+  
+  // Authentication context from private auth module
+  myorg.auth.v1.AuthContext auth_context = 2;
+}
+
+message GetUserResponse {
+  // User data using private common types
+  myorg.common.User user = 1;
+  
+  // Metadata using private platform schemas
+  myorg.common.ResponseMetadata metadata = 2;
+}
+
+message CreateUserRequest {
+  // User data from private schemas
+  myorg.common.CreateUserData user_data = 1 [(validate.rules).message.required = true];
+  
+  // Authentication context
+  myorg.auth.v1.AuthContext auth_context = 2;
+}
+
+message CreateUserResponse {
+  // Created user using private types
+  myorg.common.User user = 1;
+  
+  // Response metadata
+  myorg.common.ResponseMetadata metadata = 2;
+}
+
+message UpdateUserRequest {
+  string user_id = 1 [(validate.rules).string.min_len = 1];
+  
+  // Update data from private schemas
+  myorg.common.UpdateUserData update_data = 2;
+  
+  // Authentication context
+  myorg.auth.v1.AuthContext auth_context = 3;
+}
+
+message UpdateUserResponse {
+  // Updated user
+  myorg.common.User user = 1;
+  
+  // Response metadata
+  myorg.common.ResponseMetadata metadata = 2;
+}

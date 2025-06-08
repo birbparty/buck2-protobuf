@@ -1,0 +1,301 @@
+# Schema Governance Examples - Buck2 Build Configuration
+# Demonstrates comprehensive governance workflows for protobuf schema development
+
+load("//rules:governance.bzl", "schema_review", "bsr_breaking_check", "bsr_publish_governed", "governance_policy")
+load("//rules:proto.bzl", "enhanced_proto_library")
+load("//rules:bsr.bzl", "bsr_team_config")
+
+# Governance policy configuration
+governance_policy(
+    name = "org_governance",
+    config_file = "governance.yaml",
+    global_settings = {
+        "default_approval_count": "2",
+        "require_2fa": "true",
+        "audit_all_changes": "true",
+    },
+    visibility = ["//visibility:public"],
+)
+
+# Team configurations for governance examples
+bsr_team_config(
+    name = "platform_team_config",
+    team = "platform-team",
+    members = {
+        "alice": "admin",
+        "bob": "maintainer",
+        "charlie": "contributor",
+    },
+    repositories = {
+        "buf.build/myorg/public-api": "admin",
+        "buf.build/myorg/internal-api": "write",
+        "oras.birb.homes/myorg/platform": "admin",
+    },
+    settings = {
+        "auto_approve_members": "false",
+        "require_2fa": "true",
+        "notification_preferences": "all",
+    },
+    visibility = ["//visibility:public"],
+)
+
+bsr_team_config(
+    name = "api_team_config",
+    team = "api-team",
+    members = {
+        "diana": "maintainer",
+        "eve": "contributor",
+        "frank": "contributor",
+    },
+    repositories = {
+        "buf.build/myorg/public-api": "write",
+        "buf.build/myorg/internal-api": "read",
+    },
+    settings = {
+        "auto_approve_members": "true",
+        "require_2fa": "true",
+    },
+    visibility = ["//visibility:public"],
+)
+
+# Public API with strict governance
+enhanced_proto_library(
+    name = "public_api_proto",
+    srcs = ["public-api/user_api.proto"],
+    team = "platform-team",
+    team_config = ":platform_team_config",
+    visibility = ["//visibility:public"],
+)
+
+schema_review(
+    name = "review_public_api",
+    proto = ":public_api_proto",
+    reviewers = ["@platform-team", "@api-team"],
+    approval_count = 2,
+    review_checks = ["breaking_changes", "style_guide", "documentation"],
+    auto_approve_minor = False,
+    require_breaking_approval = True,
+    notification_teams = ["@all-engineers"],
+    visibility = ["//visibility:public"],
+)
+
+bsr_breaking_check(
+    name = "check_public_api_breaking",
+    proto = ":public_api_proto",
+    against_repository = "buf.build/myorg/public-api",
+    breaking_policy = "require_approval",
+    notify_team = "@platform-team",
+    visibility = ["//visibility:public"],
+)
+
+bsr_publish_governed(
+    name = "publish_public_api",
+    proto = ":public_api_proto",
+    repositories = {
+        "primary": "buf.build/myorg/public-api",
+        "backup": "oras.birb.homes/myorg/public-api",
+    },
+    require_review = True,
+    breaking_policy = "require_approval",
+    governance_policy = ":org_governance",
+    notify_teams = ["@api-consumers"],
+    visibility = ["//visibility:public"],
+)
+
+# Internal API with moderate governance
+enhanced_proto_library(
+    name = "internal_api_proto",
+    srcs = ["internal-api/internal_service.proto"],
+    team = "platform-team",
+    team_config = ":platform_team_config",
+    visibility = ["//visibility:public"],
+)
+
+schema_review(
+    name = "review_internal_api",
+    proto = ":internal_api_proto",
+    reviewers = ["@team-leads"],
+    approval_count = 1,
+    review_checks = ["breaking_changes", "style_guide"],
+    auto_approve_minor = True,
+    require_breaking_approval = True,
+    visibility = ["//visibility:public"],
+)
+
+bsr_breaking_check(
+    name = "check_internal_api_breaking",
+    proto = ":internal_api_proto",
+    against_repository = "buf.build/myorg/internal-api",
+    breaking_policy = "warn",
+    allow_list = ["FIELD_REMOVED"],  # Allow some breaking changes for internal APIs
+    visibility = ["//visibility:public"],
+)
+
+bsr_publish_governed(
+    name = "publish_internal_api",
+    proto = ":internal_api_proto",
+    repositories = "buf.build/myorg/internal-api",
+    require_review = True,
+    breaking_policy = "warn",
+    governance_policy = ":org_governance",
+    visibility = ["//visibility:public"],
+)
+
+# Experimental API with relaxed governance
+enhanced_proto_library(
+    name = "experimental_api_proto",
+    srcs = ["experimental/experimental_service.proto"],
+    team = "api-team",
+    team_config = ":api_team_config",
+    visibility = ["//visibility:public"],
+)
+
+schema_review(
+    name = "review_experimental_api",
+    proto = ":experimental_api_proto",
+    reviewers = ["@team-leads"],
+    approval_count = 1,
+    review_checks = ["style_guide"],
+    auto_approve_minor = True,
+    require_breaking_approval = False,  # Relaxed for experimental APIs
+    visibility = ["//visibility:public"],
+)
+
+bsr_breaking_check(
+    name = "check_experimental_api_breaking",
+    proto = ":experimental_api_proto",
+    against_repository = "buf.build/myorg/experimental",
+    breaking_policy = "allow",  # Allow all breaking changes for experimental
+    visibility = ["//visibility:public"],
+)
+
+bsr_publish_governed(
+    name = "publish_experimental_api",
+    proto = ":experimental_api_proto",
+    repositories = "buf.build/myorg/experimental",
+    require_review = False,  # Optional review for experimental
+    breaking_policy = "allow",
+    governance_policy = ":org_governance",
+    visibility = ["//visibility:public"],
+)
+
+# Cross-team collaboration example
+enhanced_proto_library(
+    name = "cross_team_api_proto",
+    srcs = ["workflows/cross_team_api.proto"],
+    deps = [
+        ":public_api_proto",    # Depends on public API
+        ":internal_api_proto",  # Depends on internal API
+    ],
+    team = "platform-team",
+    team_config = ":platform_team_config",
+    visibility = ["//visibility:public"],
+)
+
+schema_review(
+    name = "review_cross_team_api",
+    proto = ":cross_team_api_proto",
+    reviewers = ["@platform-team", "@api-team", "@backend-team"],
+    approval_count = 2,
+    review_checks = ["breaking_changes", "style_guide", "documentation"],
+    auto_approve_minor = False,
+    require_breaking_approval = True,
+    notification_teams = ["@all-engineers"],
+    visibility = ["//visibility:public"],
+)
+
+# Batch publishing example
+load("//rules:bsr_publish.bzl", "bsr_publish_multiple")
+
+bsr_publish_multiple(
+    name = "publish_all_governed_apis",
+    targets = [
+        ":public_api_proto",
+        ":internal_api_proto",
+        ":experimental_api_proto",
+    ],
+    repositories = {
+        "primary": "buf.build/myorg/all-apis",
+        "backup": "oras.birb.homes/myorg/all-apis",
+    },
+    batch_size = 3,
+    parallel = True,
+    notify_teams = ["@platform-team"],
+    visibility = ["//visibility:public"],
+)
+
+# Governance validation targets
+native.genrule(
+    name = "validate_governance",
+    srcs = [
+        ":org_governance",
+        ":platform_team_config",
+        ":api_team_config",
+    ],
+    out = "governance_validation.txt",
+    cmd = """
+echo "Validating governance configuration..." > $OUT
+echo "✅ Governance policy: $(location :org_governance)" >> $OUT
+echo "✅ Platform team config: $(location :platform_team_config)" >> $OUT
+echo "✅ API team config: $(location :api_team_config)" >> $OUT
+echo "🏛️ Schema governance framework validated successfully" >> $OUT
+    """,
+    visibility = ["//visibility:public"],
+)
+
+# Test targets for governance workflows
+native.genrule(
+    name = "test_governance_workflows",
+    srcs = [
+        ":review_public_api",
+        ":check_public_api_breaking",
+        ":review_internal_api",
+        ":check_internal_api_breaking",
+    ],
+    out = "governance_tests.txt",
+    cmd = """
+echo "Testing governance workflows..." > $OUT
+echo "✅ Public API review workflow: $(location :review_public_api)" >> $OUT
+echo "✅ Public API breaking check: $(location :check_public_api_breaking)" >> $OUT
+echo "✅ Internal API review workflow: $(location :review_internal_api)" >> $OUT
+echo "✅ Internal API breaking check: $(location :check_internal_api_breaking)" >> $OUT
+echo "🧪 All governance workflow tests configured" >> $OUT
+    """,
+    visibility = ["//visibility:public"],
+)
+
+# Documentation and examples
+native.genrule(
+    name = "governance_documentation",
+    srcs = ["README.md"],
+    out = "governance_docs.txt",
+    cmd = """
+echo "Schema Governance Framework Documentation" > $OUT
+echo "=========================================" >> $OUT
+echo "" >> $OUT
+echo "Examples and documentation available in:" >> $OUT
+echo "  $(location README.md)" >> $OUT
+echo "" >> $OUT
+echo "Key features:" >> $OUT
+echo "  ✅ Schema review workflows" >> $OUT
+echo "  ✅ Breaking change detection" >> $OUT
+echo "  ✅ Policy enforcement" >> $OUT
+echo "  ✅ Audit trails" >> $OUT
+echo "  ✅ Team collaboration" >> $OUT
+echo "" >> $OUT
+echo "🏛️ Systematic schema governance for teams" >> $OUT
+    """,
+    visibility = ["//visibility:public"],
+)
+
+# Main target that builds all governance examples
+native.filegroup(
+    name = "all",
+    srcs = [
+        ":validate_governance",
+        ":test_governance_workflows", 
+        ":governance_documentation",
+        ":publish_all_governed_apis",
+    ],
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,271 @@
+name: BSR Schema Publishing
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+
+env:
+  BUCK2_VERSION: "2024-11-15"
+
+jobs:
+  validate-schemas:
+    name: Validate Schemas
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for version detection
+
+      - name: Setup Buck2
+        run: |
+          curl -LO https://github.com/facebook/buck2/releases/download/${BUCK2_VERSION}/buck2-x86_64-unknown-linux-gnu.zst
+          zstd -d buck2-x86_64-unknown-linux-gnu.zst
+          chmod +x buck2-x86_64-unknown-linux-gnu
+          sudo mv buck2-x86_64-unknown-linux-gnu /usr/local/bin/buck2
+
+      - name: Setup Buf CLI
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate Proto Files
+        run: |
+          # Test proto compilation
+          buck2 build //examples/bsr-publishing:user_api_proto
+          buck2 build //examples/bsr-publishing:payment_api_proto
+          buck2 build //examples/bsr-publishing:notification_api_proto
+
+      - name: Run Buf Lint
+        run: |
+          cd examples/bsr-publishing
+          buf lint
+
+      - name: Test Version Detection
+        run: |
+          buck2 run //tools:bsr_version_manager -- \
+            --repository "buf.build/test/api" \
+            --proto-files examples/bsr-publishing/user_api.proto \
+            --verbose
+
+  test-publishing:
+    name: Test Publishing Workflows
+    runs-on: ubuntu-latest
+    needs: validate-schemas
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Buck2
+        run: |
+          curl -LO https://github.com/facebook/buck2/releases/download/${BUCK2_VERSION}/buck2-x86_64-unknown-linux-gnu.zst
+          zstd -d buck2-x86_64-unknown-linux-gnu.zst
+          chmod +x buck2-x86_64-unknown-linux-gnu
+          sudo mv buck2-x86_64-unknown-linux-gnu /usr/local/bin/buck2
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install pyyaml
+
+      - name: Run Publishing Tests
+        run: |
+          buck2 test //tools:test_bsr_publisher
+          buck2 test //tools:test_bsr_version_manager
+
+  publish-dev:
+    name: Publish to Development
+    runs-on: ubuntu-latest
+    needs: test-publishing
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: development
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Buck2
+        run: |
+          curl -LO https://github.com/facebook/buck2/releases/download/${BUCK2_VERSION}/buck2-x86_64-unknown-linux-gnu.zst
+          zstd -d buck2-x86_64-unknown-linux-gnu.zst
+          chmod +x buck2-x86_64-unknown-linux-gnu
+          sudo mv buck2-x86_64-unknown-linux-gnu /usr/local/bin/buck2
+
+      - name: Setup Buf CLI
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to Development
+        run: |
+          buck2 run //examples/bsr-publishing:publish_dev_apis
+        env:
+          BUF_TOKEN: ${{ secrets.BUF_TOKEN_DEV }}
+
+  publish-staging:
+    name: Publish to Staging
+    runs-on: ubuntu-latest
+    needs: test-publishing
+    if: startsWith(github.ref, 'refs/tags/v') && contains(github.ref, '-rc')
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Buck2
+        run: |
+          curl -LO https://github.com/facebook/buck2/releases/download/${BUCK2_VERSION}/buck2-x86_64-unknown-linux-gnu.zst
+          zstd -d buck2-x86_64-unknown-linux-gnu.zst
+          chmod +x buck2-x86_64-unknown-linux-gnu
+          sudo mv buck2-x86_64-unknown-linux-gnu /usr/local/bin/buck2
+
+      - name: Setup Buf CLI
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to Staging
+        run: |
+          buck2 run //examples/bsr-publishing:publish_payment_api
+        env:
+          BUF_TOKEN: ${{ secrets.BUF_TOKEN_STAGING }}
+
+  publish-production:
+    name: Publish to Production
+    runs-on: ubuntu-latest
+    needs: test-publishing
+    if: github.event_name == 'release' && github.event.action == 'published'
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Buck2
+        run: |
+          curl -LO https://github.com/facebook/buck2/releases/download/${BUCK2_VERSION}/buck2-x86_64-unknown-linux-gnu.zst
+          zstd -d buck2-x86_64-unknown-linux-gnu.zst
+          chmod +x buck2-x86_64-unknown-linux-gnu
+          sudo mv buck2-x86_64-unknown-linux-gnu /usr/local/bin/buck2
+
+      - name: Setup Buf CLI
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to Production (Multi-Registry)
+        run: |
+          buck2 run //examples/bsr-publishing:publish_prod_apis
+        env:
+          BUF_TOKEN: ${{ secrets.BUF_TOKEN_PROD }}
+
+      - name: Verify Publication
+        run: |
+          # Wait for publication to propagate
+          sleep 30
+          
+          # Verify schemas are accessible
+          buf build buf.build/myorg/user-api
+          
+          echo "✅ Production publication successful and verified"
+
+  publish-batch:
+    name: Batch Publish All APIs
+    runs-on: ubuntu-latest
+    needs: test-publishing
+    if: github.event_name == 'release' && github.event.action == 'published'
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Buck2
+        run: |
+          curl -LO https://github.com/facebook/buck2/releases/download/${BUCK2_VERSION}/buck2-x86_64-unknown-linux-gnu.zst
+          zstd -d buck2-x86_64-unknown-linux-gnu.zst
+          chmod +x buck2-x86_64-unknown-linux-gnu
+          sudo mv buck2-x86_64-unknown-linux-gnu /usr/local/bin/buck2
+
+      - name: Setup Buf CLI
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Batch Publish All APIs
+        run: |
+          buck2 run //examples/bsr-publishing:publish_all_apis
+        env:
+          BUF_TOKEN: ${{ secrets.BUF_TOKEN_PROD }}
+
+  notify-teams:
+    name: Notify Teams
+    runs-on: ubuntu-latest
+    needs: [publish-production, publish-batch]
+    if: always() && (needs.publish-production.result == 'success' || needs.publish-batch.result == 'success')
+    steps:
+      - name: Send Slack Notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              text: "🚀 Schema Release Published",
+              attachments: [{
+                color: 'good',
+                fields: [{
+                  title: 'Release',
+                  value: '${{ github.event.release.tag_name }}',
+                  short: true
+                }, {
+                  title: 'Environment',
+                  value: 'Production',
+                  short: true
+                }, {
+                  title: 'Schemas',
+                  value: 'User API, Payment API, Notification API',
+                  short: false
+                }]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Create GitHub Release Comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.payload.release.id,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 **Schemas Published Successfully**
+              
+              All API schemas have been published to production registries:
+              
+              - **User API**: \`buf.build/myorg/user-api:${{ github.event.release.tag_name }}\`
+              - **Payment API**: \`buf.build/myorg/payment-api:${{ github.event.release.tag_name }}\`
+              - **Notification API**: \`buf.build/myorg/notification-api:${{ github.event.release.tag_name }}\`
+              
+              **Multi-Registry Deployment**: ✅ BSR + ORAS
+              **Team Notifications**: ✅ Sent
+              **Version Strategy**: Semantic Versioning
+              
+              Teams can now consume the updated schemas from the BSR.`
+            })

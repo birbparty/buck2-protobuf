@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package company.platform.types;
+
+import "google/protobuf/timestamp.proto";
+import "buf/validate/validate.proto";
+
+// Core platform types managed by the platform team
+// This file demonstrates platform team's admin access to core schemas
+
+message PlatformMetadata {
+  // Unique identifier for platform resources
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  
+  // Creation timestamp
+  google.protobuf.Timestamp created_at = 2;
+  
+  // Last modification timestamp
+  google.protobuf.Timestamp updated_at = 3;
+  
+  // Resource version for optimistic concurrency
+  int64 version = 4;
+  
+  // Environment where this resource exists
+  Environment environment = 5;
+  
+  // Team responsible for this resource
+  string owning_team = 6 [(buf.validate.field).string.min_len = 1];
+}
+
+enum Environment {
+  ENVIRONMENT_UNSPECIFIED = 0;
+  ENVIRONMENT_DEVELOPMENT = 1;
+  ENVIRONMENT_STAGING = 2;
+  ENVIRONMENT_PRODUCTION = 3;
+}
+
+message AuditInfo {
+  // User who performed the action
+  string user_id = 1;
+  
+  // Team the user belonged to at time of action
+  string team = 2;
+  
+  // Action performed
+  string action = 3;
+  
+  // Timestamp of the action
+  google.protobuf.Timestamp timestamp = 4;
+  
+  // Additional context about the action
+  map<string, string> context = 5;
+}
+
+// Platform-wide error handling
+message PlatformError {
+  // Error code
+  string code = 1;
+  
+  // Human-readable error message
+  string message = 2;
+  
+  // Additional error details
+  map<string, string> details = 3;
+  
+  // Error severity
+  ErrorSeverity severity = 4;
+}
+
+enum ErrorSeverity {
+  ERROR_SEVERITY_UNSPECIFIED = 0;
+  ERROR_SEVERITY_INFO = 1;
+  ERROR_SEVERITY_WARNING = 2;
+  ERROR_SEVERITY_ERROR = 3;
+  ERROR_SEVERITY_CRITICAL = 4;
+}
+
+// Team-specific resource ownership
+message TeamResource {
+  // Platform metadata
+  PlatformMetadata metadata = 1;
+  
+  // Team that owns this resource
+  string team = 2;
+  
+  // Access level required to modify this resource
+  AccessLevel required_access_level = 3;
+  
+  // List of teams with specific permissions
+  repeated TeamPermission team_permissions = 4;
+}
+
+message TeamPermission {
+  // Team name
+  string team = 1;
+  
+  // Access level granted
+  AccessLevel access_level = 2;
+  
+  // When this permission was granted
+  google.protobuf.Timestamp granted_at = 3;
+  
+  // Who granted this permission
+  string granted_by = 4;
+}
+
+enum AccessLevel {
+  ACCESS_LEVEL_UNSPECIFIED = 0;
+  ACCESS_LEVEL_READ = 1;
+  ACCESS_LEVEL_WRITE = 2;
+  ACCESS_LEVEL_ADMIN = 3;
+}

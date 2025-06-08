@@ -1,0 +1,106 @@
+load("//rules:bsr.bzl", "bsr_repository", "bsr_team_config", "enhanced_proto_library")
+
+# Configure private BSR repository with team access
+bsr_repository(
+    name = "company_private_schemas",
+    repository = "buf.build/company/private-schemas",
+    auth_method = "service_account",
+    teams = ["@platform-team", "@backend-team"],
+    access_level = "read",
+    service_account_file = "service_account.json",
+)
+
+# Configure platform team
+bsr_team_config(
+    name = "platform_team_config",
+    team = "platform-team",
+    members = {
+        "alice": "admin",
+        "bob": "maintainer",
+        "charlie": "contributor",
+    },
+    repositories = {
+        "buf.build/company/private-schemas": "admin",
+        "buf.build/company/platform-types": "admin",
+        "buf.build/googleapis/googleapis": "read",
+    },
+    settings = {
+        "auto_approve_members": False,
+        "require_2fa": True,
+        "default_member_role": "contributor",
+        "notification_preferences": {
+            "permission_changes": True,
+            "member_additions": True,
+            "repository_access": True,
+        },
+    },
+)
+
+# Configure backend team
+bsr_team_config(
+    name = "backend_team_config",
+    team = "backend-team", 
+    members = {
+        "diana": "maintainer",
+        "eve": "contributor",
+        "frank": "contributor",
+    },
+    repositories = {
+        "buf.build/company/private-schemas": "read",
+        "buf.build/company/service-schemas": "write",
+        "buf.build/googleapis/googleapis": "read",
+    },
+    settings = {
+        "auto_approve_members": True,
+        "require_2fa": True,
+        "default_member_role": "contributor",
+    },
+)
+
+# Platform team proto with admin access to private schemas
+enhanced_proto_library(
+    name = "platform_types_proto",
+    srcs = ["platform_types.proto"],
+    bsr_deps = [
+        "@company_private_schemas//core:types",
+        "buf.build/googleapis/googleapis",
+    ],
+    bsr_repositories = {
+        "@company_private_schemas": ":company_private_schemas",
+    },
+    team = "platform-team",
+    team_config = ":platform_team_config",
+    visibility = ["//..."],
+)
+
+# Backend team proto with read access to platform schemas
+enhanced_proto_library(
+    name = "user_service_proto",
+    srcs = ["user_service.proto"],
+    bsr_deps = [
+        "@company_private_schemas//core:types",
+        "buf.build/googleapis/googleapis",
+    ],
+    bsr_repositories = {
+        "@company_private_schemas": ":company_private_schemas",
+    },
+    team = "backend-team",
+    team_config = ":backend_team_config",
+    visibility = ["//..."],
+)
+
+# Cross-team collaboration example
+enhanced_proto_library(
+    name = "gateway_service_proto",
+    srcs = ["gateway_service.proto"],
+    deps = [
+        ":platform_types_proto",  # Platform team dependency
+        ":user_service_proto",    # Backend team dependency
+    ],
+    bsr_deps = [
+        "buf.build/googleapis/googleapis",
+    ],
+    team = "platform-team",
+    team_config = ":platform_team_config",
+    visibility = ["//..."],
+)

@@ -2,9 +2,12 @@ syntax = "proto3";
 
 package com.example.userservice;
 
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/example/userservice";
 
-// UserService provides user management functionality
+// UserService provides user management functionality with validation
 service UserService {
   // GetUser retrieves a user by ID
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
@@ -24,46 +27,52 @@ service UserService {
 
 // Request message for GetUser RPC
 message GetUserRequest {
-  // User ID to retrieve
-  string user_id = 1;
+  // User ID to retrieve - must be a valid UUID
+  string user_id = 1 [(buf.validate.field).string = {
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+  }];
 }
 
 // Response message for GetUser RPC
 message GetUserResponse {
   // Retrieved user
-  User user = 1;
+  User user = 1 [(buf.validate.field).message.required = true];
 }
 
 // Request message for CreateUser RPC
 message CreateUserRequest {
-  // User to create
-  User user = 1;
+  // User to create - required field
+  User user = 1 [(buf.validate.field).message.required = true];
 }
 
 // Response message for CreateUser RPC
 message CreateUserResponse {
   // Created user with assigned ID
-  User user = 1;
+  User user = 1 [(buf.validate.field).message.required = true];
 }
 
 // Request message for UpdateUser RPC
 message UpdateUserRequest {
-  // User ID to update
-  string user_id = 1;
-  // Updated user data
-  User user = 2;
+  // User ID to update - must be a valid UUID
+  string user_id = 1 [(buf.validate.field).string = {
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+  }];
+  // Updated user data - required
+  User user = 2 [(buf.validate.field).message.required = true];
 }
 
 // Response message for UpdateUser RPC
 message UpdateUserResponse {
   // Updated user
-  User user = 1;
+  User user = 1 [(buf.validate.field).message.required = true];
 }
 
 // Request message for DeleteUser RPC
 message DeleteUserRequest {
-  // User ID to delete
-  string user_id = 1;
+  // User ID to delete - must be a valid UUID
+  string user_id = 1 [(buf.validate.field).string = {
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+  }];
 }
 
 // Response message for DeleteUser RPC
@@ -74,39 +83,84 @@ message DeleteUserResponse {
 
 // Request message for ListUsers RPC
 message ListUsersRequest {
-  // Maximum number of users to return
-  int32 page_size = 1;
-  // Page token for pagination
-  string page_token = 2;
+  // Maximum number of users to return - between 1 and 100
+  int32 page_size = 1 [(buf.validate.field).int32 = {
+    gte: 1,
+    lte: 100
+  }];
+  // Page token for pagination - optional, max 200 chars
+  string page_token = 2 [(buf.validate.field).string.max_len = 200];
 }
 
 // Response message for ListUsers RPC
 message ListUsersResponse {
   // List of users
-  repeated User users = 1;
+  repeated User users = 1 [(buf.validate.field).repeated.max_items = 100];
   // Next page token
   string next_page_token = 2;
 }
 
-// User entity
+// User entity with comprehensive validation
 message User {
-  // Unique user identifier
-  string user_id = 1;
-  // User's email address
-  string email = 2;
-  // User's display name
-  string display_name = 3;
+  // Unique user identifier - must be a valid UUID or empty for creation
+  string user_id = 1 [(buf.validate.field).string = {
+    pattern: "^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$"
+  }];
+  
+  // User's email address - must be valid email format
+  string email = 2 [(buf.validate.field).string = {
+    pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+    min_len: 3,
+    max_len: 254
+  }];
+  
+  // User's display name - required, 1-100 characters
+  string display_name = 3 [(buf.validate.field).string = {
+    min_len: 1,
+    max_len: 100
+  }];
+  
   // User creation timestamp
   google.protobuf.Timestamp created_at = 4;
+  
   // User last update timestamp
   google.protobuf.Timestamp updated_at = 5;
-  // User status
-  UserStatus status = 6;
+  
+  // User status - must be specified (not unspecified)
+  UserStatus status = 6 [(buf.validate.field).enum = {
+    not_in: [0]  // Disallow USER_STATUS_UNSPECIFIED
+  }];
+  
+  // User age - must be between 13 and 120
+  int32 age = 7 [(buf.validate.field).int32 = {
+    gte: 13,
+    lte: 120
+  }];
+  
+  // User preferences - optional nested message
+  UserPreferences preferences = 8;
+}
+
+// User preferences with validation
+message UserPreferences {
+  // Theme preference
+  string theme = 1 [(buf.validate.field).string = {
+    in: ["light", "dark", "auto"]
+  }];
+  
+  // Language preference - ISO 639-1 language code
+  string language = 2 [(buf.validate.field).string = {
+    pattern: "^[a-z]{2}$"
+  }];
+  
+  // Notification settings
+  bool email_notifications = 3;
+  bool push_notifications = 4;
 }
 
 // User status enumeration
 enum UserStatus {
-  // Default value
+  // Default value - not allowed in actual usage
   USER_STATUS_UNSPECIFIED = 0;
   // User is active
   USER_STATUS_ACTIVE = 1;

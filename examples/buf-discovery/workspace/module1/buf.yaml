@@ -1,0 +1,8 @@
+version: v1
+name: buf.build/buck2-protobuf/workspace-module1
+lint:
+  use:
+    - DEFAULT
+breaking:
+  use:
+    - FILE

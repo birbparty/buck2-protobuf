@@ -1,0 +1,169 @@
+"""ORAS private registry integration example.
+
+This example demonstrates how to use private dependencies from the
+oras.birb.homes registry alongside public BSR dependencies.
+"""
+
+load("//rules:buf.bzl", "buf_lint", "buf_format", "buf_breaking")
+load("//rules:proto.bzl", "proto_library")
+
+# Proto library using private ORAS registry dependencies
+proto_library(
+    name = "internal_service_proto",
+    srcs = ["service.proto"],
+    # Mix of private ORAS and public BSR dependencies
+    bsr_deps = [
+        "buf.build/googleapis/googleapis",
+    ],
+    oras_deps = [
+        "oras.birb.homes/common/types:v1.2.0",
+        "oras.birb.homes/common/errors:v1.1.0",
+        "oras.birb.homes/infra/monitoring:v1.3.0",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Lint the service using ORAS dependencies
+buf_lint(
+    name = "lint_internal_service",
+    srcs = ["service.proto"],
+    # Automatically discovers buf.yaml configuration
+    visibility = ["PUBLIC"],
+)
+
+# Format check the service
+buf_format(
+    name = "format_internal_service",
+    srcs = ["service.proto"],
+    diff = True,
+    visibility = ["PUBLIC"],
+)
+
+# Breaking change detection against ORAS registry baseline
+buf_breaking(
+    name = "breaking_internal_service",
+    srcs = ["service.proto"],
+    # Compare against the published version in ORAS registry
+    against = "oras.birb.homes/examples/internal-service:v1.0.0",
+    visibility = ["PUBLIC"],
+)
+
+# Performance test for ORAS dependency resolution
+proto_library(
+    name = "performance_test_proto",
+    srcs = ["service.proto"],
+    # Test parallel resolution of multiple ORAS dependencies
+    oras_deps = [
+        "oras.birb.homes/common/types:v1.2.0",
+        "oras.birb.homes/common/errors:v1.1.0",
+        "oras.birb.homes/infra/monitoring:v1.3.0",
+        "oras.birb.homes/infra/logging:v2.0.0",
+        "oras.birb.homes/infra/tracing:v1.4.0",
+        "oras.birb.homes/team-platform/auth:v2.1.0",
+    ],
+    bsr_deps = [
+        "buf.build/googleapis/googleapis",
+        "buf.build/grpc-ecosystem/grpc-gateway",
+    ],
+    # Enable performance optimizations
+    oras_parallel_resolution = True,
+    oras_cache_enabled = True,
+    visibility = ["PUBLIC"],
+)
+
+# Test ORAS cache performance
+proto_library(
+    name = "cache_test_proto",
+    srcs = ["service.proto"],
+    oras_deps = [
+        "oras.birb.homes/common/types:v1.2.0",  # Should hit cache
+        "oras.birb.homes/common/errors:v1.1.0", # Should hit cache
+    ],
+    # Force cache usage for testing
+    oras_cache_only = True,
+    visibility = ["PUBLIC"],
+)
+
+# Demonstration of different ORAS version strategies
+proto_library(
+    name = "versioned_deps_proto",
+    srcs = ["service.proto"],
+    oras_deps = [
+        "oras.birb.homes/common/types:v1.2.0",      # Pinned patch version
+        "oras.birb.homes/common/errors:v1.1",       # Pinned minor version
+        "oras.birb.homes/infra/monitoring:v1",      # Pinned major version
+        "oras.birb.homes/experimental/features:latest", # Latest for development
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Team collaboration example with shared internal dependencies
+proto_library(
+    name = "team_service_proto",
+    srcs = ["service.proto"],
+    # Dependencies from multiple teams within the organization
+    oras_deps = [
+        "oras.birb.homes/team-platform/auth:v2.1.0",
+        "oras.birb.homes/team-data/schemas:v1.5.0",
+        "oras.birb.homes/team-api/gateway:v3.0.0",
+        "oras.birb.homes/shared/common-types:v2.0.0",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Authentication test example
+proto_library(
+    name = "auth_test_proto",
+    srcs = ["service.proto"],
+    # Test authenticated access to private ORAS registry
+    oras_deps = [
+        "oras.birb.homes/private/sensitive-types:v1.0.0",
+    ],
+    # Require authentication for this target
+    oras_auth_required = True,
+    visibility = ["//team:members"],  # Restricted visibility
+)
+
+# Hybrid registry example showing BSR + ORAS combination
+proto_library(
+    name = "hybrid_registry_proto",
+    srcs = ["service.proto"],
+    # Public dependencies from BSR
+    bsr_deps = [
+        "buf.build/googleapis/googleapis",
+        "buf.build/grpc-ecosystem/grpc-gateway",
+        "buf.build/envoyproxy/protoc-gen-validate",
+    ],
+    # Private dependencies from ORAS
+    oras_deps = [
+        "oras.birb.homes/common/types:v1.2.0",
+        "oras.birb.homes/infra/monitoring:v1.3.0",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Comprehensive lint with ORAS dependencies
+buf_lint(
+    name = "lint_hybrid_registry",
+    srcs = [":hybrid_registry_proto"],
+    config = {
+        "use": ["DEFAULT", "COMMENTS", "FIELD_NAMES_LOWER_SNAKE_CASE"],
+        "except": ["PACKAGE_VERSION_SUFFIX"],
+        "enum_zero_value_suffix": "_UNSPECIFIED",
+        "service_suffix": "Service",
+    },
+    visibility = ["PUBLIC"],
+)
+
+# Breaking change detection with hybrid dependencies
+buf_breaking(
+    name = "breaking_hybrid_registry",
+    srcs = [":hybrid_registry_proto"],
+    # Compare against previous version with same dependency mix
+    against = "git#tag=v1.0.0",
+    config = {
+        "use": ["WIRE_COMPATIBLE", "WIRE_JSON_COMPATIBLE"],
+        "except": ["FIELD_SAME_DEFAULT"],
+    },
+    visibility = ["PUBLIC"],
+)

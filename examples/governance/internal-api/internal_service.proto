@@ -1,0 +1,307 @@
+// Internal Service API - Demonstrates moderate governance requirements
+// This API is subject to:
+// - Single team lead review
+// - 1 approval required
+// - Auto-approve minor changes
+// - Breaking change warnings (not blocking)
+
+syntax = "proto3";
+
+package governance.internal.service.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/myorg/apis/governance/internal/service/v1;servicev1";
+
+// Internal service for team coordination and data processing
+// This service has moderate governance requirements for team collaboration
+service InternalService {
+  // Process data batch
+  rpc ProcessBatch(ProcessBatchRequest) returns (ProcessBatchResponse);
+  
+  // Get processing status
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  
+  // Configure processing pipeline
+  rpc ConfigurePipeline(ConfigurePipelineRequest) returns (ConfigurePipelineResponse);
+  
+  // Health check
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Processing request
+message ProcessBatchRequest {
+  // Batch ID
+  string batch_id = 1 [(buf.validate.field).string.min_len = 1];
+  
+  // Data items to process
+  repeated DataItem items = 2;
+  
+  // Processing options
+  ProcessingOptions options = 3;
+}
+
+// Data item for processing
+message DataItem {
+  // Item ID
+  string id = 1;
+  
+  // Item data
+  bytes data = 2;
+  
+  // Item metadata
+  map<string, string> metadata = 3;
+}
+
+// Processing options
+message ProcessingOptions {
+  // Processing mode
+  ProcessingMode mode = 1;
+  
+  // Batch size
+  int32 batch_size = 2 [(buf.validate.field).int32 = {gte: 1, lte: 1000}];
+  
+  // Timeout in seconds
+  int32 timeout_seconds = 3;
+}
+
+// Processing modes
+enum ProcessingMode {
+  PROCESSING_MODE_UNSPECIFIED = 0;
+  PROCESSING_MODE_FAST = 1;
+  PROCESSING_MODE_THOROUGH = 2;
+  PROCESSING_MODE_EXPERIMENTAL = 3;
+}
+
+// Processing response
+message ProcessBatchResponse {
+  // Processing job ID
+  string job_id = 1;
+  
+  // Initial status
+  ProcessingStatus status = 2;
+  
+  // Estimated completion time
+  int64 estimated_completion = 3;
+}
+
+// Status request
+message GetStatusRequest {
+  // Job ID to check
+  string job_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Status response
+message GetStatusResponse {
+  // Job ID
+  string job_id = 1;
+  
+  // Current status
+  ProcessingStatus status = 2;
+  
+  // Progress information
+  ProgressInfo progress = 3;
+  
+  // Results (if completed)
+  ProcessingResults results = 4;
+}
+
+// Processing status
+enum ProcessingStatus {
+  PROCESSING_STATUS_UNSPECIFIED = 0;
+  PROCESSING_STATUS_QUEUED = 1;
+  PROCESSING_STATUS_RUNNING = 2;
+  PROCESSING_STATUS_COMPLETED = 3;
+  PROCESSING_STATUS_FAILED = 4;
+  PROCESSING_STATUS_CANCELLED = 5;
+}
+
+// Progress information
+message ProgressInfo {
+  // Items processed
+  int32 processed_count = 1;
+  
+  // Total items
+  int32 total_count = 2;
+  
+  // Processing rate (items/second)
+  double processing_rate = 3;
+  
+  // Estimated remaining time
+  int32 estimated_remaining_seconds = 4;
+}
+
+// Processing results
+message ProcessingResults {
+  // Successful items
+  int32 success_count = 1;
+  
+  // Failed items
+  int32 failure_count = 2;
+  
+  // Processing details
+  repeated ProcessingDetail details = 3;
+  
+  // Summary statistics
+  map<string, double> statistics = 4;
+}
+
+// Processing detail
+message ProcessingDetail {
+  // Item ID
+  string item_id = 1;
+  
+  // Processing result
+  ProcessingResult result = 2;
+  
+  // Error message (if failed)
+  string error_message = 3;
+  
+  // Processing duration
+  int64 duration_ms = 4;
+}
+
+// Processing results
+enum ProcessingResult {
+  PROCESSING_RESULT_UNSPECIFIED = 0;
+  PROCESSING_RESULT_SUCCESS = 1;
+  PROCESSING_RESULT_FAILURE = 2;
+  PROCESSING_RESULT_SKIPPED = 3;
+}
+
+// Pipeline configuration request
+message ConfigurePipelineRequest {
+  // Pipeline ID
+  string pipeline_id = 1 [(buf.validate.field).string.min_len = 1];
+  
+  // Pipeline configuration
+  PipelineConfig config = 2;
+}
+
+// Pipeline configuration
+message PipelineConfig {
+  // Pipeline name
+  string name = 1;
+  
+  // Processing stages
+  repeated ProcessingStage stages = 2;
+  
+  // Default options
+  ProcessingOptions default_options = 3;
+  
+  // Resource limits
+  ResourceLimits limits = 4;
+}
+
+// Processing stage
+message ProcessingStage {
+  // Stage name
+  string name = 1;
+  
+  // Stage type
+  string type = 2;
+  
+  // Stage configuration
+  map<string, string> config = 3;
+  
+  // Dependencies
+  repeated string dependencies = 4;
+}
+
+// Resource limits
+message ResourceLimits {
+  // Max concurrent jobs
+  int32 max_concurrent_jobs = 1;
+  
+  // Memory limit in MB
+  int32 memory_limit_mb = 2;
+  
+  // CPU limit (cores)
+  double cpu_limit = 3;
+  
+  // Storage limit in GB
+  int32 storage_limit_gb = 4;
+}
+
+// Pipeline configuration response
+message ConfigurePipelineResponse {
+  // Configuration success
+  bool success = 1;
+  
+  // Pipeline ID
+  string pipeline_id = 2;
+  
+  // Validation errors
+  repeated string validation_errors = 3;
+}
+
+// Health check request
+message HealthCheckRequest {
+  // Include detailed status
+  bool include_details = 1;
+}
+
+// Health check response
+message HealthCheckResponse {
+  // Service status
+  ServiceStatus status = 1;
+  
+  // System details
+  SystemDetails details = 2;
+  
+  // Dependencies status
+  repeated DependencyStatus dependencies = 3;
+}
+
+// Service status
+enum ServiceStatus {
+  SERVICE_STATUS_UNSPECIFIED = 0;
+  SERVICE_STATUS_HEALTHY = 1;
+  SERVICE_STATUS_DEGRADED = 2;
+  SERVICE_STATUS_UNHEALTHY = 3;
+}
+
+// System details
+message SystemDetails {
+  // Service version
+  string version = 1;
+  
+  // Uptime in seconds
+  int64 uptime_seconds = 2;
+  
+  // Memory usage
+  ResourceUsage memory = 3;
+  
+  // CPU usage
+  ResourceUsage cpu = 4;
+  
+  // Active jobs
+  int32 active_jobs = 5;
+}
+
+// Resource usage
+message ResourceUsage {
+  // Used amount
+  double used = 1;
+  
+  // Total available
+  double total = 2;
+  
+  // Usage percentage
+  double percentage = 3;
+}
+
+// Dependency status
+message DependencyStatus {
+  // Dependency name
+  string name = 1;
+  
+  // Status
+  ServiceStatus status = 2;
+  
+  // Last check time
+  int64 last_check = 3;
+  
+  // Error message (if unhealthy)
+  string error_message = 4;
+}

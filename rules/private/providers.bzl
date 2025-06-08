@@ -4,6 +4,34 @@ This module defines the providers used to pass information between protobuf
 rules. Implementation will be completed in Task 002.
 """
 
+# BSRRepositoryInfo provider - information about configured BSR repositories
+BSRRepositoryInfo = provider(
+    doc = "Information about a BSR repository configuration",
+    fields = {
+        "repository": "BSR repository reference (e.g., buf.build/myorg/private-schemas)",
+        "auth_method": "Authentication method for this repository",
+        "teams": "List of teams with access to this repository",
+        "access_level": "Access level for the repository (read/write/admin)",
+        "service_account_file": "Path to service account key file (optional)",
+        "cache_ttl": "Cache time-to-live in seconds",
+        "config_file": "Repository configuration file",
+        "is_private": "Whether this is a private repository",
+    }
+)
+
+BSRPublishInfo = provider(
+    doc = "Information about a BSR publishing configuration",
+    fields = {
+        "proto": "Proto library target to publish",
+        "repositories": "Dictionary of repository configurations",
+        "config_file": "Publishing configuration file",
+        "publishing_script": "Generated publishing script",
+        "version_strategy": "Versioning strategy (semantic/manual/git_tag)",
+        "breaking_change_policy": "Breaking change policy (allow/require_approval/block)",
+        "notify_teams": "Teams to notify on publication",
+    }
+)
+
 # ProtoInfo provider - will be fully implemented in Task 002
 ProtoInfo = provider(fields = [
     "descriptor_set",        # Compiled protobuf descriptor set
@@ -91,6 +119,29 @@ ValidationRuleInfo = provider(fields = [
     "severity",             # Severity level (error, warning, info)
     "rule_name",            # Human-readable name of the rule
     "description",          # Description of what the rule validates
+])
+
+# ProtovalidateInfo provider - modern protovalidate validation information
+ProtovalidateInfo = provider(fields = [
+    "language",            # Target language (go, python, typescript)
+    "runtime_config",      # Runtime configuration for protovalidate
+    "validation_files",    # Generated validation files
+    "schema_dir",          # buf/validate schema directory
+    "version",             # Protovalidate library version used
+    "cache_enabled",       # Whether BSR caching is enabled
+])
+
+# ConnectInfo provider - Connect framework information
+ConnectInfo = provider(fields = [
+    "language",            # Target language (go, typescript, etc.)
+    "framework",           # Framework used (connect, connect-go, connect-es, etc.)
+    "sources",             # Generated source files
+    "proto_info",          # Original ProtoInfo from the proto target
+    "grpc_compat",         # Whether gRPC compatibility is enabled
+    "transport",           # Transport protocol for connect-es (grpc-web, etc.)
+    "import_style",        # Import style for connect-es (module, commonjs)
+    "frameworks",          # List of frameworks for multi-framework targets
+    "framework_infos",     # List of framework-specific ConnectInfo objects
 ])
 
 # CacheKeyInfo provider - cache key information for optimized builds
@@ -220,3 +271,125 @@ PerformanceMetricsInfo = provider(fields = [
     "files_processed",     # Number of files processed
     "strategy_used",       # Strategy used for compilation
 ])
+
+# Buf-specific providers
+
+# BufLintInfo provider - buf lint operation results
+BufLintInfo = provider(fields = [
+    "lint_report",         # JSON lint report from buf lint
+    "violations",          # List of lint violations found
+    "passed",              # Boolean indicating if linting passed
+    "config_used",         # Configuration that was used for linting
+    "files_linted",        # List of files that were linted
+    "lint_time_ms",        # Time taken for linting in milliseconds
+    "rules_applied",       # List of lint rules that were applied
+    "error_count",         # Number of lint errors found
+    "warning_count",       # Number of lint warnings found
+])
+
+# BufFormatInfo provider - buf format operation results
+BufFormatInfo = provider(fields = [
+    "formatted_files",     # List of formatted file outputs
+    "diff_report",         # Diff report showing formatting changes
+    "needs_formatting",    # Boolean indicating if files need formatting
+    "files_processed",     # List of files that were processed
+    "format_time_ms",      # Time taken for formatting in milliseconds
+    "changes_made",        # Number of formatting changes made
+    "diff_output",         # Raw diff output from buf format --diff
+])
+
+# BufBreakingInfo provider - buf breaking change detection results
+BufBreakingInfo = provider(fields = [
+    "breaking_report",     # JSON breaking change report from buf breaking
+    "violations",          # List of breaking changes found
+    "passed",              # Boolean indicating if breaking change check passed
+    "baseline_used",       # Baseline that was compared against
+    "config_used",         # Configuration that was used for detection
+    "files_checked",       # List of files that were checked
+    "check_time_ms",       # Time taken for breaking change check in milliseconds
+    "rules_applied",       # List of breaking change rules that were applied
+    "breaking_count",      # Number of breaking changes found
+])
+
+# BufToolchainInfo provider - buf CLI toolchain information
+BufToolchainInfo = provider(fields = [
+    "buf_cli",             # Path to buf CLI binary
+    "version",             # Version of buf CLI
+    "platform",            # Platform (e.g., "linux-x86_64")
+    "download_method",     # How the CLI was obtained (oras, http, etc.)
+    "cache_path",          # Path where CLI is cached
+    "checksum_verified",   # Whether the CLI checksum was verified
+])
+
+# Governance and review workflow providers
+
+# SchemaReviewInfo provider - schema review workflow information
+SchemaReviewInfo = provider(
+    doc = "Information about schema review workflow configuration",
+    fields = {
+        "proto": "Proto library under review",
+        "reviewers": "Required reviewers (teams/users)",
+        "approval_count": "Number of approvals required", 
+        "config_file": "Review configuration file",
+        "review_script": "Review workflow execution script",
+        "auto_approve_minor": "Whether to auto-approve minor changes",
+    }
+)
+
+# BreakingChangeInfo provider - breaking change detection information
+BreakingChangeInfo = provider(
+    doc = "Information about breaking change detection configuration",
+    fields = {
+        "proto": "Proto library being checked",
+        "against_repository": "Repository to compare against",
+        "against_tag": "Tag/commit to compare against",
+        "breaking_policy": "Policy for handling breaking changes",
+        "config_file": "Breaking change configuration file",
+        "breaking_script": "Breaking change check script",
+    }
+)
+
+# GovernancePolicyInfo provider - governance policy configuration
+GovernancePolicyInfo = provider(
+    doc = "Information about governance policy configuration",
+    fields = {
+        "config_file": "Governance configuration file path",
+        "teams": "Team-specific policy configurations",
+        "repositories": "Repository-specific policy configurations", 
+        "global_settings": "Global governance settings",
+        "policy_config_file": "Generated policy configuration file",
+    }
+)
+
+# AuditTrailInfo provider - audit trail information
+AuditTrailInfo = provider(
+    doc = "Information about audit trail configuration and records",
+    fields = {
+        "audit_records": "List of audit record files",
+        "audit_config": "Audit configuration",
+        "storage_backend": "Audit trail storage backend",
+        "retention_policy": "Audit record retention policy",
+    }
+)
+
+# TeamCollaborationInfo provider - team collaboration configuration
+TeamCollaborationInfo = provider(
+    doc = "Information about team collaboration configuration",
+    fields = {
+        "team": "Team name",
+        "collaboration_config": "Team collaboration configuration",
+        "shared_resources": "Shared team resources",
+        "permission_matrix": "Team permission matrix",
+    }
+)
+
+# ComplianceReportInfo provider - compliance reporting information
+ComplianceReportInfo = provider(
+    doc = "Information about compliance reports and metrics",
+    fields = {
+        "report_type": "Type of compliance report",
+        "report_file": "Generated compliance report file",
+        "coverage": "Compliance coverage metrics",
+        "violations": "List of compliance violations",
+    }
+)

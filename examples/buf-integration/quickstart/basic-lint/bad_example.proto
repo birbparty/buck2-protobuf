@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+// LINTING ISSUES DEMONSTRATION
+// This file intentionally contains common buf linting violations
+// to demonstrate what NOT to do and how buf catches these issues.
+
+package badexample;  // ISSUE: Package name should be more descriptive
+
+// ISSUE: Missing file-level comments and options
+
+// badService violates naming conventions
+service badService {  // ISSUE: Service names should be PascalCase and end with "Service"
+  // ISSUE: Missing RPC comments
+  rpc getuser(getUserReq) returns (getUserResp);  // ISSUE: RPC names should be PascalCase
+  rpc create_user(createUserRequest) returns (createUserResponse);  // ISSUE: snake_case not allowed
+}
+
+// ISSUE: Missing message comments
+message getUserReq {  // ISSUE: Message names should be PascalCase
+  string UserID = 1;  // ISSUE: Field names should be snake_case, not PascalCase
+  // ISSUE: Missing field comments
+}
+
+message getUserResp {  // ISSUE: Message names should be PascalCase
+  user_data user = 1;  // ISSUE: Message names should be PascalCase
+}
+
+message user_data {  // ISSUE: Message names should be PascalCase
+  string ID = 1;  // ISSUE: Field names should be snake_case
+  string Email = 2;  // ISSUE: Field names should be snake_case
+  string Name = 3;  // ISSUE: Field names should be snake_case
+  status Status = 4;  // ISSUE: Enum names should be PascalCase
+}
+
+enum status {  // ISSUE: Enum names should be PascalCase
+  ACTIVE = 0;  // ISSUE: First enum value should be ZERO with _UNSPECIFIED suffix
+  INACTIVE = 1;
+  DELETED = 2;
+}
+
+message createUserRequest {  // ISSUE: Message names should be PascalCase
+  user_data user = 1;
+  bool force = 2;  // ISSUE: Missing field comments
+}
+
+message createUserResponse {  // ISSUE: Message names should be PascalCase
+  user_data user = 1;
+  string error = 2;  // ISSUE: Error handling should use status codes, not string
+}
+
+// ISSUE: No package version suffix
+// ISSUE: No proper import statements for well-known types
+// ISSUE: No language-specific options
+// ISSUE: Inconsistent field numbering gaps
+// ISSUE: Missing validation annotations

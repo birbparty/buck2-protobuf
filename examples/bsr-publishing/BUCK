@@ -1,0 +1,106 @@
+load("//rules:proto.bzl", "proto_library")
+load("//rules:bsr_publish.bzl", "bsr_publish", "bsr_publish_multiple")
+
+# Example proto libraries to publish
+proto_library(
+    name = "user_api_proto",
+    srcs = ["user_api.proto"],
+    visibility = ["PUBLIC"],
+)
+
+proto_library(
+    name = "payment_api_proto", 
+    srcs = ["payment_api.proto"],
+    deps = [":user_api_proto"],
+    visibility = ["PUBLIC"],
+)
+
+proto_library(
+    name = "notification_api_proto",
+    srcs = ["notification_api.proto"],
+    deps = [":user_api_proto"],
+    visibility = ["PUBLIC"],
+)
+
+# Single registry publishing examples
+bsr_publish(
+    name = "publish_user_api",
+    proto = ":user_api_proto",
+    repositories = "buf.build/myorg/user-api",
+    notify_teams = ["@backend-team"],
+)
+
+# Multi-registry publishing with governance
+bsr_publish(
+    name = "publish_payment_api",
+    proto = ":payment_api_proto",
+    repositories = {
+        "primary": "buf.build/myorg/payment-api",
+        "backup": "oras.birb.homes/myorg/payment-api"
+    },
+    breaking_change_policy = "require_approval",
+    require_review = True,
+    notify_teams = ["@payment-team", "@platform-team"],
+)
+
+# Publishing with custom tags and settings
+bsr_publish(
+    name = "publish_notification_api",
+    proto = ":notification_api_proto",
+    repositories = {
+        "primary": "buf.build/myorg/notification-api",
+        "backup": "oras.birb.homes/myorg/notification-api"
+    },
+    version_strategy = "semantic",
+    breaking_change_policy = "allow",
+    tags = ["stable", "production"],
+    notify_teams = ["@notification-team"],
+)
+
+# Batch publishing multiple APIs
+bsr_publish_multiple(
+    name = "publish_all_apis",
+    targets = [
+        ":user_api_proto",
+        ":payment_api_proto", 
+        ":notification_api_proto"
+    ],
+    repositories = {
+        "primary": "buf.build/myorg/platform-apis",
+        "backup": "oras.birb.homes/myorg/platform-apis"
+    },
+    breaking_change_policy = "require_approval",
+    notify_teams = ["@platform-team"],
+    parallel = True,
+    batch_size = 3,
+)
+
+# Development/staging publishing
+bsr_publish(
+    name = "publish_dev_apis",
+    proto = ":user_api_proto",
+    repositories = {
+        "dev": "buf.build/myorg/user-api-dev",
+        "staging": "oras.birb.homes/myorg/user-api-staging"
+    },
+    version_strategy = "semantic",
+    breaking_change_policy = "allow",
+    tags = ["dev", "unstable"],
+    require_review = False,
+)
+
+# Production publishing with strict governance
+bsr_publish(
+    name = "publish_prod_apis",
+    proto = ":user_api_proto",
+    repositories = {
+        "production": "buf.build/myorg/user-api",
+        "backup": "oras.birb.homes/myorg/user-api",
+        "mirror": "registry.company.com/myorg/user-api"
+    },
+    version_strategy = "semantic",
+    breaking_change_policy = "block",  # No breaking changes allowed
+    require_review = True,
+    tags = ["production", "stable"],
+    notify_teams = ["@platform-team", "@sre-team", "@api-consumers"],
+)

@@ -1,0 +1,88 @@
+load("//rules:proto.bzl", "proto_library")
+load("//rules:bsr_publish.bzl", "bsr_publish")
+load("//rules:governance.bzl", "schema_review", "bsr_breaking_check")
+
+# Example CI/CD protobuf targets for testing workflows
+
+proto_library(
+    name = "ci_test_schemas",
+    srcs = [
+        "test-schemas/api.proto",
+        "test-schemas/models.proto",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Example ORAS publishing configuration
+bsr_publish(
+    name = "publish_ci_schemas",
+    proto = ":ci_test_schemas",
+    repositories = {
+        "primary": "oras.birb.homes/buck2-protobuf/ci-examples",
+        "backup": "buf.build/buck2-protobuf/ci-examples"
+    },
+    version_strategy = "semantic",
+    breaking_change_policy = "warn",  # Lenient for examples
+    notify_teams = [],  # No default teams
+    visibility = ["PUBLIC"],
+)
+
+# Example schema review (optional governance)
+schema_review(
+    name = "review_ci_schemas",
+    proto = ":ci_test_schemas",
+    reviewers = [],  # No default reviewers - must be configured
+    approval_count = 1,
+    auto_approve_minor = True,
+    require_breaking_approval = False,  # Lenient for examples
+    visibility = ["PUBLIC"],
+)
+
+# Example breaking change detection
+bsr_breaking_check(
+    name = "check_ci_breaking",
+    proto = ":ci_test_schemas",
+    against_repository = "oras.birb.homes/buck2-protobuf/ci-examples",
+    breaking_policy = "warn",  # Lenient for examples
+    visibility = ["PUBLIC"],
+)
+
+# CI validation script target
+python_binary(
+    name = "ci_validation",
+    main = "scripts/ci_validation.py",
+    deps = [],
+    visibility = ["PUBLIC"],
+)
+
+# ORAS deployment script target
+python_binary(
+    name = "oras_deploy",
+    main = "scripts/oras_deploy.py",
+    deps = [],
+    visibility = ["PUBLIC"],
+)
+
+# Complete CI/CD validation suite
+genrule(
+    name = "validate_all",
+    out = "validation_results.txt",
+    cmd = """
+        echo "Running comprehensive CI/CD validation..." > $OUT
+        $(exe :ci_validation) --project-root . --output-format text >> $OUT 2>&1 || true
+        echo "Validation completed. Check output above." >> $OUT
+    """,
+    visibility = ["PUBLIC"],
+)
+
+# Example deployment target
+genrule(
+    name = "deploy_example_schemas",
+    out = "deployment_results.txt",
+    cmd = """
+        echo "Deploying example schemas to ORAS registry..." > $OUT
+        $(exe :oras_deploy) --dry-run --project-root . --repository buck2-protobuf/ci-examples >> $OUT 2>&1 || true
+        echo "Deployment completed. Check output above." >> $OUT
+    """,
+    visibility = ["PUBLIC"],
+)

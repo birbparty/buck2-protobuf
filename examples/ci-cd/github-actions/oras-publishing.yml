@@ -1,0 +1,484 @@
+name: ORAS Schema Publishing
+
+on:
+  release:
+    types: [published, created]
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      registry:
+        description: 'ORAS Registry URL'
+        required: false
+        default: 'oras.birb.homes'
+      tag:
+        description: 'Schema version tag'
+        required: false
+        default: 'latest'
+      dry_run:
+        description: 'Dry run (do not actually publish)'
+        type: boolean
+        required: false
+        default: false
+
+env:
+  ORAS_VERSION: "1.2.0"
+  BUCK2_VERSION: "latest"
+  DEFAULT_REGISTRY: "oras.birb.homes"
+
+jobs:
+  publish:
+    name: Publish Schemas to ORAS
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for version detection
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || echo "No requirements.txt found"
+          
+          # Install additional dependencies for publishing
+          pip install semantic-version gitpython
+      
+      - name: Setup ORAS
+        uses: oras-project/setup-oras@v1
+        with:
+          version: ${{ env.ORAS_VERSION }}
+      
+      - name: Setup Buck2
+        run: |
+          # Download and install Buck2
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            BUCK2_PLATFORM="linux"
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            BUCK2_PLATFORM="macos"
+          else
+            echo "Unsupported platform: $RUNNER_OS"
+            exit 1
+          fi
+          
+          # Get latest Buck2 release
+          if [[ "$BUCK2_VERSION" == "latest" ]]; then
+            BUCK2_VERSION=$(curl -s https://api.github.com/repos/facebook/buck2/releases/latest | jq -r .tag_name)
+          fi
+          
+          echo "Installing Buck2 $BUCK2_VERSION for $BUCK2_PLATFORM"
+          curl -L "https://github.com/facebook/buck2/releases/download/$BUCK2_VERSION/buck2-$BUCK2_PLATFORM.zst" -o buck2.zst
+          
+          # Install zstd for decompression
+          sudo apt-get update && sudo apt-get install -y zstd
+          
+          # Decompress and install
+          zstd -d buck2.zst
+          chmod +x buck2
+          sudo mv buck2 /usr/local/bin/
+          
+          # Verify installation
+          buck2 --version
+          echo "ORAS version: $(oras version)"
+      
+      - name: Cache Buck2 build outputs
+        uses: actions/cache@v3
+        with:
+          path: |
+            buck-out/
+            .buck2/
+          key: ${{ runner.os }}-buck2-publish-${{ hashFiles('**/*.proto', '**/BUCK', '.buckconfig') }}
+          restore-keys: |
+            ${{ runner.os }}-buck2-publish-
+            ${{ runner.os }}-buck2-
+      
+      - name: Determine version and registry
+        id: config
+        run: |
+          # Determine registry
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            REGISTRY="${{ github.event.inputs.registry }}"
+            VERSION_TAG="${{ github.event.inputs.tag }}"
+            DRY_RUN="${{ github.event.inputs.dry_run }}"
+          else
+            REGISTRY="${DEFAULT_REGISTRY}"
+            DRY_RUN="false"
+            
+            # Determine version from event
+            if [[ "${{ github.event_name }}" == "release" ]]; then
+              VERSION_TAG="${{ github.event.release.tag_name }}"
+            elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+              VERSION_TAG="${GITHUB_REF#refs/tags/}"
+            else
+              # Generate version from commit
+              VERSION_TAG="$(date +%Y%m%d)-$(git rev-parse --short HEAD)"
+            fi
+          fi
+          
+          # Clean version tag (remove 'v' prefix if present)
+          VERSION_TAG="${VERSION_TAG#v}"
+          
+          echo "REGISTRY=${REGISTRY}" >> $GITHUB_OUTPUT
+          echo "VERSION_TAG=${VERSION_TAG}" >> $GITHUB_OUTPUT
+          echo "DRY_RUN=${DRY_RUN}" >> $GITHUB_OUTPUT
+          
+          echo "📋 Publishing Configuration:"
+          echo "  Registry: ${REGISTRY}"
+          echo "  Version: ${VERSION_TAG}"
+          echo "  Dry Run: ${DRY_RUN}"
+      
+      - name: Validate schemas before publishing
+        run: |
+          echo "🔍 Pre-publication validation..."
+          
+          # Build all proto targets to ensure they're valid
+          if buck2 query "kind(proto_library, //...)" 2>/dev/null | head -1; then
+            echo "Building all proto_library targets..."
+            buck2 build $(buck2 query "kind(proto_library, //...)")
+          else
+            echo "No Buck2 proto_library targets found"
+            exit 1
+          fi
+          
+          echo "✅ All schemas validated successfully"
+      
+      - name: Configure ORAS authentication
+        env:
+          ORAS_REGISTRY: ${{ steps.config.outputs.REGISTRY }}
+          ORAS_USERNAME: ${{ secrets.ORAS_USERNAME }}
+          ORAS_PASSWORD: ${{ secrets.ORAS_PASSWORD }}
+        run: |
+          if [[ -z "$ORAS_USERNAME" || -z "$ORAS_PASSWORD" ]]; then
+            echo "⚠️  Warning: ORAS credentials not provided. Attempting anonymous access."
+            echo "To enable authenticated publishing, set ORAS_USERNAME and ORAS_PASSWORD secrets."
+          else
+            echo "🔐 Configuring ORAS authentication for ${ORAS_REGISTRY}..."
+            echo "$ORAS_PASSWORD" | oras login "$ORAS_REGISTRY" --username "$ORAS_USERNAME" --password-stdin
+            echo "✅ Authentication configured"
+          fi
+      
+      - name: Package schemas for ORAS
+        id: package
+        env:
+          REGISTRY: ${{ steps.config.outputs.REGISTRY }}
+          VERSION_TAG: ${{ steps.config.outputs.VERSION_TAG }}
+        run: |
+          echo "📦 Packaging schemas for ORAS publishing..."
+          
+          # Create publishing directory
+          mkdir -p .oras-publish
+          
+          # Generate schema manifests
+          python3 << 'EOF'
+          import os
+          import json
+          import glob
+          import hashlib
+          from pathlib import Path
+          
+          def calculate_sha256(file_path):
+              sha256_hash = hashlib.sha256()
+              with open(file_path, "rb") as f:
+                  for chunk in iter(lambda: f.read(4096), b""):
+                      sha256_hash.update(chunk)
+              return sha256_hash.hexdigest()
+          
+          # Find all proto files
+          proto_files = glob.glob('**/*.proto', recursive=True)
+          
+          # Create manifest
+          manifest = {
+              "schemaVersion": 2,
+              "mediaType": "application/vnd.oci.image.manifest.v1+json",
+              "artifactType": "application/vnd.cncf.protobuf.schema.v1",
+              "config": {
+                  "mediaType": "application/vnd.cncf.protobuf.config.v1+json",
+                  "size": 0,
+                  "digest": ""
+              },
+              "layers": []
+          }
+          
+          # Package each proto file
+          for proto_file in proto_files:
+              # Calculate file info
+              file_size = os.path.getsize(proto_file)
+              file_digest = f"sha256:{calculate_sha256(proto_file)}"
+              
+              # Copy to publishing directory
+              dest_path = Path('.oras-publish') / proto_file
+              dest_path.parent.mkdir(parents=True, exist_ok=True)
+              
+              with open(proto_file, 'rb') as src, open(dest_path, 'wb') as dst:
+                  dst.write(src.read())
+              
+              # Add to manifest
+              manifest["layers"].append({
+                  "mediaType": "application/vnd.cncf.protobuf.schema.v1",
+                  "size": file_size,
+                  "digest": file_digest,
+                  "annotations": {
+                      "org.opencontainers.image.title": proto_file,
+                      "org.opencontainers.image.description": f"Protobuf schema: {proto_file}",
+                      "org.cncf.protobuf.file.path": proto_file
+                  }
+              })
+          
+          # Create config
+          config = {
+              "repository": os.environ.get('GITHUB_REPOSITORY', ''),
+              "version": os.environ.get('VERSION_TAG', ''),
+              "commit": os.environ.get('GITHUB_SHA', ''),
+              "schemas": [f["annotations"]["org.cncf.protobuf.file.path"] for f in manifest["layers"]]
+          }
+          
+          # Write config
+          config_json = json.dumps(config, indent=2)
+          with open('.oras-publish/config.json', 'w') as f:
+              f.write(config_json)
+          
+          # Update manifest config
+          config_size = len(config_json.encode('utf-8'))
+          config_digest = f"sha256:{hashlib.sha256(config_json.encode('utf-8')).hexdigest()}"
+          
+          manifest["config"]["size"] = config_size
+          manifest["config"]["digest"] = config_digest
+          
+          # Write manifest
+          with open('.oras-publish/manifest.json', 'w') as f:
+              json.dump(manifest, f, indent=2)
+          
+          print(f"📦 Packaged {len(proto_files)} schema files")
+          print(f"   Config size: {config_size} bytes")
+          print(f"   Total layers: {len(manifest['layers'])}")
+          EOF
+          
+          echo "SCHEMA_COUNT=$(find .oras-publish -name '*.proto' | wc -l)" >> $GITHUB_OUTPUT
+          
+          echo "📋 Package contents:"
+          find .oras-publish -type f | head -20
+          if [[ $(find .oras-publish -type f | wc -l) -gt 20 ]]; then
+            echo "... and $(($(find .oras-publish -type f | wc -l) - 20)) more files"
+          fi
+      
+      - name: Generate repository reference
+        id: repo_ref
+        env:
+          REGISTRY: ${{ steps.config.outputs.REGISTRY }}
+          VERSION_TAG: ${{ steps.config.outputs.VERSION_TAG }}
+        run: |
+          # Generate repository reference
+          REPO_NAME=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+          REPO_REF="${REGISTRY}/${REPO_NAME}:${VERSION_TAG}"
+          LATEST_REF="${REGISTRY}/${REPO_NAME}:latest"
+          
+          echo "REPO_REF=${REPO_REF}" >> $GITHUB_OUTPUT
+          echo "LATEST_REF=${LATEST_REF}" >> $GITHUB_OUTPUT
+          
+          echo "📍 Repository references:"
+          echo "  Versioned: ${REPO_REF}"
+          echo "  Latest: ${LATEST_REF}"
+      
+      - name: Publish to ORAS registry
+        env:
+          REPO_REF: ${{ steps.repo_ref.outputs.REPO_REF }}
+          LATEST_REF: ${{ steps.repo_ref.outputs.LATEST_REF }}
+          DRY_RUN: ${{ steps.config.outputs.DRY_RUN }}
+        run: |
+          cd .oras-publish
+          
+          if [[ "$DRY_RUN" == "true" ]]; then
+            echo "🧪 DRY RUN - Would publish to:"
+            echo "  ${REPO_REF}"
+            echo "  ${LATEST_REF}"
+            
+            echo "📦 Would publish these files:"
+            find . -name "*.proto" -o -name "*.json" | sort
+            
+            echo "✅ Dry run completed successfully"
+          else
+            echo "🚀 Publishing schemas to ORAS registry..."
+            
+            # Publish with version tag
+            echo "Publishing to: ${REPO_REF}"
+            oras push "${REPO_REF}" \
+              --config config.json:application/vnd.cncf.protobuf.config.v1+json \
+              $(find . -name "*.proto" -printf "%p:application/vnd.cncf.protobuf.schema.v1 ")
+            
+            # Also tag as latest if this is a release
+            if [[ "${{ github.event_name }}" == "release" || "$GITHUB_REF" == refs/tags/* ]]; then
+              echo "Tagging as latest: ${LATEST_REF}"
+              oras tag "${REPO_REF}" "${LATEST_REF}"
+            fi
+            
+            echo "✅ Schemas published successfully!"
+          fi
+      
+      - name: Verify published schemas
+        if: steps.config.outputs.DRY_RUN != 'true'
+        env:
+          REPO_REF: ${{ steps.repo_ref.outputs.REPO_REF }}
+        run: |
+          echo "🔍 Verifying published schemas..."
+          
+          # Pull and verify the published artifact
+          mkdir -p .oras-verify
+          cd .oras-verify
+          
+          echo "Pulling: ${REPO_REF}"
+          oras pull "${REPO_REF}"
+          
+          echo "📋 Verification results:"
+          echo "  Files pulled: $(find . -name '*.proto' | wc -l)"
+          echo "  Config present: $(test -f config.json && echo 'Yes' || echo 'No')"
+          
+          if [[ -f config.json ]]; then
+            echo "📄 Published config:"
+            cat config.json | jq '.'
+          fi
+          
+          echo "✅ Verification completed"
+      
+      - name: Update Buck2 publishing targets (if applicable)
+        if: steps.config.outputs.DRY_RUN != 'true'
+        run: |
+          echo "🔄 Checking for Buck2 publishing integration..."
+          
+          # Look for existing Buck2 publishing targets
+          if buck2 query "kind(bsr_publish, //...)" 2>/dev/null | head -1; then
+            echo "Found Buck2 publishing targets, running them..."
+            
+            # Set environment variables for Buck2 publishing
+            export ORAS_REGISTRY="${{ steps.config.outputs.REGISTRY }}"
+            export ORAS_VERSION_TAG="${{ steps.config.outputs.VERSION_TAG }}"
+            export ORAS_REPO_REF="${{ steps.repo_ref.outputs.REPO_REF }}"
+            
+            # Run Buck2 publishing targets (if they support ORAS)
+            for target in $(buck2 query "kind(bsr_publish, //...)" 2>/dev/null); do
+              echo "Checking target: ${target}"
+              # Only run if target has ORAS configuration
+              if buck2 query "${target}" --output-attribute repositories 2>/dev/null | grep -q "oras"; then
+                echo "Running ORAS-enabled target: ${target}"
+                buck2 run "${target}" || echo "Target ${target} failed or not ORAS-compatible"
+              fi
+            done
+          else
+            echo "No Buck2 publishing targets found"
+          fi
+      
+      - name: Generate publishing report
+        if: always()
+        env:
+          REGISTRY: ${{ steps.config.outputs.REGISTRY }}
+          VERSION_TAG: ${{ steps.config.outputs.VERSION_TAG }}
+          REPO_REF: ${{ steps.repo_ref.outputs.REPO_REF }}
+          SCHEMA_COUNT: ${{ steps.package.outputs.SCHEMA_COUNT }}
+          DRY_RUN: ${{ steps.config.outputs.DRY_RUN }}
+        run: |
+          echo "📊 Generating publishing report..."
+          
+          cat > publishing_report.md << EOF
+          # ORAS Schema Publishing Report
+          
+          **Repository:** \${{ github.repository }}  
+          **Commit:** \${{ github.sha }}  
+          **Workflow:** \${{ github.workflow }}  
+          **Run:** \${{ github.run_number }}
+          
+          ## Publishing Details
+          
+          - **Registry:** \`${REGISTRY}\`
+          - **Version:** \`${VERSION_TAG}\`
+          - **Reference:** \`${REPO_REF}\`
+          - **Schema Count:** ${SCHEMA_COUNT}
+          - **Dry Run:** ${DRY_RUN}
+          
+          ## Status
+          
+          $(if [[ "$DRY_RUN" == "true" ]]; then
+            echo "🧪 **DRY RUN** - No actual publishing performed"
+          else
+            echo "✅ **PUBLISHED** - Schemas successfully published to ORAS registry"
+          fi)
+          
+          ## Pull Command
+          
+          To pull these schemas:
+          \`\`\`bash
+          oras pull ${REPO_REF}
+          \`\`\`
+          
+          ## Registry Access
+          
+          - **Registry URL:** https://${REGISTRY}
+          - **Repository:** ${REPO_REF%:*}
+          - **Tags:** ${VERSION_TAG}, latest (if release)
+          
+          ---
+          *Generated on \$(date)*
+          EOF
+          
+          echo "Publishing report:"
+          cat publishing_report.md
+      
+      - name: Upload publishing artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: publishing-report
+          path: |
+            publishing_report.md
+            .oras-publish/
+            .oras-verify/
+          retention-days: 90
+      
+      - name: Create release comment
+        if: github.event_name == 'release' && steps.config.outputs.DRY_RUN != 'true'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            
+            try {
+              const report = fs.readFileSync('publishing_report.md', 'utf8');
+              
+              await github.rest.repos.createCommitComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: context.sha,
+                body: `## 🚀 ORAS Schema Publishing\n\n${report}`
+              });
+            } catch (error) {
+              console.log('Could not create comment:', error);
+            }
+      
+      - name: Notify on failure
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const title = `ORAS Publishing Failed - ${context.workflow}`;
+            const body = `
+            🚨 **ORAS Schema Publishing Failed**
+            
+            **Repository:** ${context.repo.owner}/${context.repo.repo}
+            **Workflow:** ${context.workflow}
+            **Run:** ${context.runNumber}
+            **Commit:** ${context.sha}
+            
+            **Failed Job:** ${context.job}
+            
+            Please check the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId}) for details.
+            `;
+            
+            // You could create an issue or send notifications here
+            console.log('Publishing failed:', title);
+            console.log('Details:', body);

@@ -166,6 +166,37 @@ def create_descriptor_set_action(ctx, proto_files, deps_descriptor_sets, import_
     
     return descriptor_set
 
+def get_short_path(file):
+    """
+    Get the short path of a file for use in commands.
+    
+    Args:
+        file: File object
+        
+    Returns:
+        Short path string for the file
+    """
+    if hasattr(file, 'short_path'):
+        return file.short_path
+    else:
+        return str(file)
+
+def create_cache_key(inputs):
+    """
+    Create a cache key from a list of inputs.
+    
+    Args:
+        inputs: List of strings or objects to create cache key from
+        
+    Returns:
+        Cache key string
+    """
+    # Simple hash-like key generation
+    # In a real implementation, this would be a proper hash
+    import hashlib
+    content = "_".join([str(input) for input in inputs])
+    return hashlib.sha256(content.encode()).hexdigest()[:16]
+
 def _dedupe_list(items):
     """
     Deduplicates a list while preserving order.
